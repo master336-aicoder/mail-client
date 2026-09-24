@@ -39,6 +39,11 @@ mail:
     jwt-secret: ${JWT_SECRET:mail-client-dev-secret-change-me-0123456789abcdef0123456789abcdef}
     jwt-expire-seconds: 3600
     master-key: ${MASTER_KEY:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+    # 安全开关：生产须注入真实密钥并保持以下为 false（除非确知风险）
+    allow-insecure-defaults: ${ALLOW_INSECURE_DEFAULTS:false}
+    allow-private-host: ${ALLOW_PRIVATE_HOST:false}
+    # 鉴权 Cookie 的 Secure 属性：HTTPS 部署置 true
+    auth-cookie-secure: ${AUTH_COOKIE_SECURE:false}
     storage-mode: local            # local | minio
     ost-base-dir: ./data/ost
     attach-dir: ./data/attachments

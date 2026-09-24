@@ -20,6 +20,7 @@ export interface UserInfo {
 export const authApi = {
   login: (data: LoginReq) => http.post('/auth/login', data),
   register: (data: RegisterReq) => http.post('/auth/register', data),
+  logout: () => http.post('/auth/logout'),
   me: () => http.get('/auth/me'),
   changePassword: (data: { oldPassword: string; newPassword: string }) => http.post('/auth/password', data)
 }

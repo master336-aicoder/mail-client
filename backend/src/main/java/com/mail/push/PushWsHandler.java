@@ -25,18 +25,22 @@ public class PushWsHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
-        URI uri = session.getUri();
-        String token = null;
-        if (uri != null) {
-            String q = uri.getQuery();
-            if (q != null) {
-                for (String pair : q.split("&")) {
+        Long userId = null;
+        Object attr = session.getAttributes().get(WsAuthInterceptor.ATTR_UID);
+        if (attr instanceof Long l) {
+            userId = l;
+        } else {
+            // 回退：从 query 参数 token 解析（兼容无 Cookie 的旧连接）
+            URI uri = session.getUri();
+            String token = null;
+            if (uri != null && uri.getQuery() != null) {
+                for (String pair : uri.getQuery().split("&")) {
                     String[] kv = pair.split("=", 2);
                     if (kv.length == 2 && "token".equals(kv[0])) token = kv[1];
                 }
             }
+            userId = resolve(token);
         }
-        Long userId = resolve(token);
         if (userId == null) {
             try {
                 session.close(CloseStatus.POLICY_VIOLATION);

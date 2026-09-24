@@ -180,7 +180,6 @@ function normalizeCid(raw: string) {
 }
 function renderBody(html: string) {
   if (!html) return ''
-  const token = localStorage.getItem('access_token')
   // 建立 Content-ID → 附件 id 映射（后端 AttachmentMeta.contentId 已随详情返回）
   const byCid = new Map<string, number>()
   for (const a of (detail.value?.attachments || [])) {
@@ -195,15 +194,8 @@ function renderBody(html: string) {
     const id = byCid.get(normalizeCid(cid))
     return id != null ? `url("/api/inline/${id}")` : `url("${PLACEHOLDER_IMG}")`
   })
-  // 2) 给已存在的 /api/inline 地址补 access_token（inline 端点虽免鉴权，补上更稳妥）
-  if (token) {
-    out = out.replace(/(src=["'])\.?(\/api\/inline\/[^"']*?)["']/gi, (m, q, url) => {
-      if (url.includes('access_token')) return m
-      const sep = url.includes('?') ? '&' : '?'
-      return `${q}${url}${sep}access_token=${encodeURIComponent(token)}${q}`
-    })
-  }
-  // 3) 净化：邮件 HTML 来自不可信发件人，去除脚本/事件处理器等，防存储型 XSS
+  // 内嵌资源经 HttpOnly 会话 Cookie 鉴权，无需在 URL 追加 token
+  // 2) 净化：邮件 HTML 来自不可信发件人，去除脚本/事件处理器等，防存储型 XSS
   return DOMPurify.sanitize(out, {
     USE_PROFILES: { html: true },
     ADD_ATTR: ['target'],

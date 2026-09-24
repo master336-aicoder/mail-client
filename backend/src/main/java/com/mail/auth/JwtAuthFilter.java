@@ -29,12 +29,25 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
         String header = request.getHeader("Authorization");
+        String token = null;
+        boolean fromCookie = false;
         if (StringUtils.hasText(header) && header.startsWith("Bearer ")) {
+            token = header.substring(7);
+        } else {
+            token = AuthCookies.read(request, AuthCookies.AUTH);
+            fromCookie = StringUtils.hasText(token);
+        }
+
+        if (StringUtils.hasText(token)) {
             try {
-                String token = header.substring(7);
                 Claims claims = jwtService.parse(token);
                 Long uid = claims.get("uid", Long.class);
                 if (uid != null) {
+                    // 经 Cookie 携带凭证的非安全方法，需通过双重提交 CSRF 校验
+                    if (fromCookie && isUnsafeMethod(request.getMethod()) && !csrfOk(request)) {
+                        rejectCsrf(response);
+                        return;
+                    }
                     CurrentUser.set(uid);
                     String role = claims.get("role", String.class);
                     if (role == null || role.isBlank()) {
@@ -59,5 +72,23 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             CurrentUser.clear();
             SecurityContextHolder.clearContext();
         }
+    }
+
+    private static boolean isUnsafeMethod(String m) {
+        return !("GET".equalsIgnoreCase(m) || "HEAD".equalsIgnoreCase(m)
+                || "OPTIONS".equalsIgnoreCase(m) || "TRACE".equalsIgnoreCase(m));
+    }
+
+    /** 请求头 X-CSRF-Token 必须与 csrf_token Cookie 一致（双重提交）。 */
+    private static boolean csrfOk(HttpServletRequest request) {
+        String cookieVal = AuthCookies.read(request, AuthCookies.CSRF);
+        String headerVal = request.getHeader(AuthCookies.CSRF_HEADER);
+        return StringUtils.hasText(cookieVal) && cookieVal.equals(headerVal);
+    }
+
+    private static void rejectCsrf(HttpServletResponse response) throws IOException {
+        response.setStatus(403);
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write("{\"code\":40301,\"message\":\"CSRF 校验失败\",\"data\":null}");
     }
 }

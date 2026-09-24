@@ -32,11 +32,11 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  const token = localStorage.getItem('access_token')
-  if (!to.meta.public && !token) {
+  const authed = localStorage.getItem('authed') === '1'
+  if (!to.meta.public && !authed) {
     return { name: 'login' }
   }
-  if (to.name === 'login' && token) {
+  if (to.name === 'login' && authed) {
     return { name: 'mail' }
   }
   return true

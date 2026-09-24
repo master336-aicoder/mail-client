@@ -19,6 +19,8 @@ public class AppProperties {
     private boolean allowInsecureDefaults = false;
     /** 允许绑定指向内网/回环的邮件服务器主机（SSRF 防护开关，仅限本地测试放行）。 */
     private boolean allowPrivateHost = false;
+    /** 鉴权 Cookie 是否加 Secure 属性。生产（HTTPS）应为 true；本地 http 开发为 false。 */
+    private boolean authCookieSecure = false;
     private String storageMode = "local";
     private String ostBaseDir = "./data/ost";
     private String attachDir = "./data/attachments";

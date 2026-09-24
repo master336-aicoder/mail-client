@@ -43,7 +43,11 @@ public class InlineAttachmentController {
     @GetMapping("/{id}")
     public ResponseEntity<Resource> inline(
             @PathVariable Long id,
-            @RequestParam(name = "access_token", required = false) String token) {
+            @RequestParam(name = "access_token", required = false) String token,
+            jakarta.servlet.http.HttpServletRequest request) {
+        if (token == null || token.isBlank()) {
+            token = com.mail.auth.AuthCookies.read(request, com.mail.auth.AuthCookies.AUTH);
+        }
         Long userId = resolveUid(token);
         AttachmentMeta meta = metaRepository.findById(id).orElseThrow(() -> new BizException(40400, "资源不存在"));
         if (!meta.getUserId().equals(userId)) throw new BizException(40300, "无权访问");

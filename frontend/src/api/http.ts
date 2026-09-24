@@ -4,13 +4,24 @@ import router from '@/router'
 
 const http = axios.create({
   baseURL: '/api',
-  timeout: 30000
+  timeout: 30000,
+  withCredentials: true // 随请求携带 HttpOnly 会话 Cookie
 })
 
+function readCookie(name: string): string | null {
+  const m = document.cookie.match(new RegExp('(^|;\\s*)' + name + '=([^;]*)'))
+  return m ? decodeURIComponent(m[2]) : null
+}
+
+const SAFE_METHODS = ['get', 'head', 'options']
+
 http.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+  // 令牌改由 HttpOnly Cookie 承载，前端不再持有/发送 Bearer；
+  // 非安全方法回传 CSRF 头（双重提交），与后端 csrf_token Cookie 比对。
+  const method = (config.method || 'get').toLowerCase()
+  if (!SAFE_METHODS.includes(method)) {
+    const csrf = readCookie('csrf_token')
+    if (csrf) config.headers['X-CSRF-Token'] = csrf
   }
   return config
 })
@@ -26,9 +37,9 @@ http.interceptors.response.use(
   },
   (error) => {
     const status = error.response?.status
-    // 401：未认证/会话失效（token 缺失、过期、无效）→ 清空并跳转登录页
+    // 401：未认证/会话失效（Cookie 缺失、过期、无效）→ 清空并跳转登录页
     if (status === 401) {
-      localStorage.removeItem('access_token')
+      localStorage.removeItem('authed')
       localStorage.removeItem('user')
       if (router.currentRoute.value.name !== 'login') {
         router.push('/login')

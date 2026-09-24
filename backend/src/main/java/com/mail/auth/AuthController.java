@@ -4,7 +4,9 @@ import com.mail.auth.dto.LoginRequest;
 import com.mail.auth.dto.RegisterRequest;
 import com.mail.common.ApiResponse;
 import com.mail.common.BizException;
+import com.mail.config.AppProperties;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,7 +15,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -22,19 +26,35 @@ public class AuthController {
 
     private final AuthService authService;
     private final LoginThrottle throttle;
+    private final AppProperties props;
 
     @PostMapping("/login")
-    public ApiResponse<Map<String, Object>> login(@Valid @RequestBody LoginRequest req, HttpServletRequest http) {
+    public ApiResponse<Map<String, Object>> login(@Valid @RequestBody LoginRequest req,
+                                                  HttpServletRequest http, HttpServletResponse res) {
         String ip = clientIp(http);
         throttle.guard("login", ip + "|" + req.getUsername());
+        Map<String, Object> result;
         try {
-            Map<String, Object> result = authService.login(req.getUsername(), req.getPassword());
-            throttle.reset("login", ip + "|" + req.getUsername());
-            return ApiResponse.ok(result);
+            result = authService.login(req.getUsername(), req.getPassword());
         } catch (BizException e) {
             // 认证失败已计入限流（guard 已在进入时累加）
             throw e;
         }
+        throttle.reset("login", ip + "|" + req.getUsername());
+        // 令牌经 HttpOnly Cookie 下发，响应体不再包含 accessToken
+        String token = String.valueOf(result.get("accessToken"));
+        AuthCookies.write(res, token, UUID.randomUUID().toString(),
+                props.getJwtExpireSeconds(), props.isAuthCookieSecure());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("user", result.get("user"));
+        body.put("expiresIn", result.get("expiresIn"));
+        return ApiResponse.ok(body);
+    }
+
+    @PostMapping("/logout")
+    public ApiResponse<Void> logout(HttpServletResponse res) {
+        AuthCookies.clear(res, props.isAuthCookieSecure());
+        return ApiResponse.ok();
     }
 
     @PostMapping("/register")

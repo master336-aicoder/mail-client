@@ -55,10 +55,10 @@ export const useMailStore = defineStore('mail', {
       this.messages = this.messages.filter((m) => m.id !== id)
     },
     connect() {
-      const token = localStorage.getItem('access_token')
-      if (!token || ws) return
+      if (ws) return
+      // 鉴权改由 HttpOnly 会话 Cookie 承载，握手自动携带，无需在 URL 暴露 token
       const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-      ws = new WebSocket(`${proto}://${location.host}/api/ws?token=${token}`)
+      ws = new WebSocket(`${proto}://${location.host}/api/ws`)
       ws.onopen = () => {
         this.connected = true
       }
