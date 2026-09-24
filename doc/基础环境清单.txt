@@ -1,0 +1,7 @@
+node版本： v22.2.0 npm版本：10.7.0
+jdk21安装位置： D:\Java\jdk-21
+maven安装位置：D:\apache-maven-3.6.3
+nacos安装位置： D:\nacos-2.4.3 无用户名密码认证 ，启动命名： D:\nacos-2.4.3\bin\start.bat
+Redis安装位置： D:\Redis-x64-3.2.100  启动命令D:\Redis-x64-3.2.100\start.bat , 密码:redis
+MySQL 8.x配置信息： localhost:3306 用户名密码：root/root
+minio安装位置： D:\minio  启动命令： D:\minio\start.bat  用户名： admin 密码： admin123456

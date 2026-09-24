@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>邮箱客户端 · 高保真原型（完整交互版）</title>
+<style>
+/* ============================================================
+   平台基础 UI 设计规范 v1.0 — 设计令牌（浅/深主题）
+   ============================================================ */
+:root{
+  --color-primary:#2563EB; --color-primary-hover:#1D4ED8; --color-primary-active:#1E40AF; --color-primary-bg:#EFF6FF;
+  --color-success:#16A34A; --color-warning:#F59E0B; --color-danger:#DC2626; --color-info:#64748B;
+  --color-bg:#F9FAFB; --color-surface:#FFFFFF; --color-surface-2:#FFFFFF;
+  --color-border:#E5E7EB; --color-border-hover:#CBD5E1;
+  --color-text:#111827; --color-text-2:#4B5563; --color-text-3:#6B7280; --color-text-disabled:#9CA3AF; --color-striping:#F3F4F6;
+  --font-family:system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+  --font-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --type-title:20px; --type-subtitle:16px; --type-body:14px; --type-caption:13px; --type-tiny:12px;
+  --space-xs:4px; --space-sm:8px; --space-md:16px; --space-lg:24px; --space-xl:32px;
+  --radius-sm:6px; --radius-md:8px; --radius-lg:12px; --radius-full:999px;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.05); --shadow-md:0 4px 12px rgba(0,0,0,.08); --shadow-lg:0 12px 32px rgba(0,0,0,.14);
+}
+@media (prefers-color-scheme: dark){
+  :root{ --color-primary:#3B82F6; --color-primary-hover:#2563EB; --color-primary-active:#1D4ED8; --color-primary-bg:#1E3A8A;
+    --color-success:#22C55E; --color-warning:#FBBF24; --color-danger:#F87171; --color-info:#94A3B8;
+    --color-bg:#111827; --color-surface:#1F2937; --color-surface-2:#111827;
+    --color-border:#374151; --color-border-hover:#4B5563;
+    --color-text:#F9FAFB; --color-text-2:#D1D5DB; --color-text-3:#9CA3AF; --color-text-disabled:#6B7280; --color-striping:#374151;
+    --shadow-sm:0 1px 2px rgba(0,0,0,.4); --shadow-md:0 4px 12px rgba(0,0,0,.5); --shadow-lg:0 12px 32px rgba(0,0,0,.6);
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--font-family);font-size:var(--type-body);color:var(--color-text);background:var(--color-bg);line-height:22px}
+
+/* 顶部原型切换条 */
+#tabs{position:fixed;top:0;left:0;right:0;z-index:120;display:flex;gap:4px;background:#0f172a;padding:8px 16px;flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+#tabs button{background:#1e293b;color:#cbd5e1;border:1px solid #334155;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer}
+#tabs button.active{background:#2563EB;color:#fff;border-color:#2563EB}
+.screen{display:none;padding:16px;padding-top:64px;height:100%}
+.screen.active{display:block}
+
+/* 通用 */
+.btn{display:inline-flex;align-items:center;gap:6px;border:none;border-radius:var(--radius-sm);padding:0 16px;height:32px;font-size:13px;cursor:pointer;transition:background .16s ease;white-space:nowrap}
+.btn-primary{background:var(--color-primary);color:#fff}.btn-primary:hover{background:var(--color-primary-hover)}.btn-primary:active{background:var(--color-primary-active)}
+.btn-default{background:var(--color-surface);color:var(--color-text-2);border:1px solid var(--color-border)}.btn-default:hover{color:var(--color-primary);border-color:var(--color-primary)}
+.btn-danger{background:transparent;color:var(--color-danger);border:1px solid var(--color-danger)}.btn-danger:hover{background:var(--color-danger);color:#fff}
+.btn-text{background:none;color:var(--color-primary);padding:0 6px}.btn-text:hover{color:var(--color-primary-hover)}
+.btn-lg{height:40px;font-size:14px}
+.input{height:32px;border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:0 12px;font-size:14px;background:var(--color-surface);color:var(--color-text);width:100%}
+.input:focus{outline:none;border-color:var(--color-primary);box-shadow:0 0 0 2px rgba(37,99,235,.25)}
+.input-lg{height:40px}
+.select-h{height:32px;border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:0 8px;background:var(--color-surface);color:var(--color-text)}
+.mono{font-family:var(--font-mono);font-size:13px}
+.card{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);box-shadow:var(--shadow-sm)}
+.badge{display:inline-flex;align-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:var(--radius-full);background:var(--color-danger);color:#fff;font-size:12px;justify-content:center}
+.tag{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:var(--radius-sm);font-size:12px;font-weight:500}
+.tag-success{color:var(--color-success);background:rgba(22,163,74,.1)}
+.tag-warning{color:var(--color-warning);background:rgba(245,158,11,.12)}
+.tag-danger{color:var(--color-danger);background:rgba(220,38,38,.1)}
+.tag-info{color:var(--color-info);background:rgba(100,116,139,.12)}
+.tag-primary{color:var(--color-primary);background:var(--color-primary-bg)}
+.pane-header{padding:14px 16px;border-bottom:1px solid var(--color-border);display:flex;align-items:center;justify-content:space-between}
+.pane-title{font-size:14px;font-weight:600}
+.link{color:var(--color-primary);cursor:pointer;background:none;border:none;font-size:13px}.link:hover{color:var(--color-primary-hover)}
+.detail-addr{font-size:12px;color:var(--color-text-3)}
+.divider{height:1px;background:var(--color-border);margin:14px 0}
+
+/* 登录/注册 */
+.auth-wrap{height:100%;display:flex;align-items:center;justify-content:center}
+.auth-card{width:400px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:32px}
+.auth-logo{text-align:center;margin-bottom:8px}
+.auth-logo .ico{width:48px;height:48px;border-radius:14px;background:var(--color-primary);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;color:#fff;font-size:24px}
+.auth-title{font-size:var(--type-subtitle);font-weight:600;text-align:center}
+.auth-sub{font-size:13px;color:var(--color-text-3);text-align:center;margin:4px 0 24px}
+.field{margin-bottom:16px}.field label{display:block;font-size:13px;color:var(--color-text-2);margin-bottom:6px}
+.row-between{display:flex;align-items:center;justify-content:space-between;font-size:13px;margin-bottom:20px}
+.auth-foot{text-align:center;font-size:12px;color:var(--color-text-3);margin-top:20px}
+.errorbar{background:rgba(220,38,38,.08);color:var(--color-danger);border:1px solid rgba(220,38,38,.25);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;margin-bottom:16px;display:none}
+
+/* 主工作台三栏 */
+.workbench{display:grid;grid-template-columns:220px 360px 1fr;gap:12px;height:calc(100vh - 104px)}
+.pane{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);overflow:hidden;display:flex;flex-direction:column}
+.folder-item{display:flex;align-items:center;justify-content:space-between;padding:9px 16px;cursor:pointer;font-size:14px;border:none;background:none;width:100%;text-align:left;color:var(--color-text)}
+.folder-item:hover{background:var(--color-striping)}
+.folder-item.active{background:var(--color-primary-bg);color:var(--color-primary);font-weight:500}
+.folder-item .cnt{color:var(--color-text-3);font-size:12px}
+.folder-item.active .cnt{color:var(--color-primary)}
+.folder-group{padding:8px 16px 4px;font-size:12px;color:var(--color-text-3);text-transform:uppercase}
+.list-tool{padding:10px 12px;border-bottom:1px solid var(--color-border);display:flex;align-items:center;gap:8px}
+.mail-row{display:grid;grid-template-columns:28px 24px 1fr;gap:8px;padding:11px 14px;border-bottom:1px solid var(--color-striping);cursor:pointer;align-items:center}
+.mail-row:hover{background:var(--color-striping)}
+.mail-row.unread .sender,.mail-row.unread .subj,.mail-row.unread .s-att{font-weight:600}
+.mail-row.read{opacity:.92}
+.mail-row.selected{box-shadow:inset 3px 0 0 var(--color-primary);background:var(--color-primary-bg)}
+.mail-star{cursor:pointer;color:var(--color-text-disabled)}
+.mail-star.on{color:var(--color-warning)}
+.mail-mid{min-width:0}
+.mail-who{display:flex;align-items:center;gap:8px}
+.av{width:32px;height:32px;border-radius:var(--radius-full);background:var(--color-primary-bg);color:var(--color-primary);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0}
+.mail-sender{font-size:14px;display:flex;justify-content:space-between;align-items:center}
+.mail-time{font-size:12px;color:var(--color-text-3)}
+.mail-preview{font-size:13px;color:var(--color-text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mail-s-att{margin-right:4px}
+.batchbar{display:flex;gap:6px;align-items:center;padding:8px 14px;background:var(--color-surface);border-bottom:1px solid var(--color-border)}
+
+/* 详情 */
+.detail{padding:24px;overflow:auto;flex:1}
+.detail-sub{font-size:var(--type-subtitle);font-weight:600;margin-bottom:16px}
+.detail-from{display:flex;align-items:center;gap:12px;padding-bottom:16px;border-bottom:1px solid var(--color-border);margin-bottom:16px}
+.detail-name{font-weight:500}
+.detail-meta{margin-left:auto;text-align:right;font-size:12px;color:var(--color-text-3)}
+.detail-tools{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.detail-body{font-size:14px;color:var(--color-text-2);line-height:1.7}
+.attach{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--color-border);border-radius:var(--radius-sm);width:100%;max-width:360px;margin-top:12px}
+
+/* 写邮件 */
+.compose{max-width:860px;margin:0 auto}
+.compose-line{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--color-border)}
+.compose-line label{width:56px;color:var(--color-text-3);font-size:13px;flex-shrink:0}
+.compose-line .full{flex:1;min-width:0}
+.toolbar{display:flex;gap:2px;padding:8px 0;border-bottom:1px solid var(--color-border);flex-wrap:wrap}
+.tb-btn{width:30px;height:30px;border:none;background:none;border-radius:4px;cursor:pointer;color:var(--color-text-2);font-size:14px}
+.tb-btn:hover{background:var(--color-striping)}
+.editor{min-height:260px;padding:14px 2px;color:var(--color-text);font-size:14px;outline:none;line-height:1.7}
+.editor:focus{color:var(--color-text)}
+
+/* 设置 */
+.settings{display:grid;grid-template-columns:220px 1fr;gap:12px;max-width:1100px;margin:0 auto}
+.settings-nav .item{padding:10px 16px;cursor:pointer;border-radius:var(--radius-sm);font-size:14px}
+.settings-nav .item:hover{background:var(--color-striping)}
+.settings-nav .item.active{background:var(--color-primary-bg);color:var(--color-primary);font-weight:500}
+.form-panel{padding:24px}
+.form-panel .ph{padding:0 0 14px;border-bottom:1px solid var(--color-border);display:flex;align-items:center;justify-content:space-between}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{background:var(--color-bg);font-weight:600;text-align:left;padding:10px 12px;border-bottom:1px solid var(--color-border)}
+.tbl td{padding:11px 12px;border-bottom:1px solid var(--color-striping);vertical-align:middle}
+.tbl tr:hover td{background:var(--color-striping)}
+.pager{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:14px 4px;font-size:13px;color:var(--color-text-3)}
+.page-btn{width:28px;height:28px;border:1px solid var(--color-border);background:var(--color-surface);border-radius:4px;cursor:pointer}.page-btn:hover{border-color:var(--color-primary);color:var(--color-primary)}
+.page-btn.on{background:var(--color-primary);border-color:var(--color-primary);color:#fff}
+.form-row{display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-bottom:14px}
+.form-row label{width:88px;color:var(--color-text-3);font-size:13px;flex-shrink:0}
+.form-row .ctrl{flex:1;min-width:200px}
+
+/* 弹层 */
+.modal{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;z-index:90;padding:20px}
+.modal.open{display:flex}
+.modal-card{background:var(--color-surface-2);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);width:100%;max-width:520px;max-height:90vh;overflow:auto;padding:24px}
+.modal-head{font-size:16px;font-weight:600;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center}
+.wizard-steps{display:flex;gap:8px;margin-bottom:20px}
+.wstep{flex:1;text-align:center;font-size:12px;color:var(--color-text-3);padding-bottom:8px;border-bottom:2px solid var(--color-border)}
+.wstep.on{color:var(--color-primary);border-color:var(--color-primary)}
+.detect-result{margin-top:12px}
+.probe-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--color-border);border-radius:var(--radius-sm);margin-bottom:8px;cursor:pointer}
+.probe-item:hover{border-color:var(--color-primary)}
+.probe-item.checked{border-color:var(--color-primary);background:var(--color-primary-bg)}
+.stepper{display:flex;gap:16px;margin-bottom:14px}
+.stepper .seg{flex:1;height:8px;border-radius:4px;background:var(--color-striping);overflow:hidden}
+.stepper .seg.done{background:var(--color-success)}
+.seg-bar{height:100%;background:var(--color-success);width:0%;transition:width .3s}
+
+/* Toast */
+#toast-wrap{position:fixed;top:64px;right:20px;z-index:200;display:flex;flex-direction:column;gap:10px}
+.toast{background:var(--color-surface-2);border:1px solid var(--color-border);border-left:4px solid var(--color-primary);border-radius:var(--radius-md);box-shadow:var(--shadow-md);padding:12px 16px;min-width:260px;max-width:360px;font-size:14px;animation:slideIn .22s ease}
+.toast.success{border-left-color:var(--color-success)}
+.toast.warning{border-left-color:var(--color-warning)}
+.toast.danger{border-left-color:var(--color-danger)}
+@keyframes slideIn{from{transform:translateX(20px);opacity:0}to{transform:none;opacity:1}}
+.toast .t-title{font-weight:600;margin-bottom:2px}
+
+/* 空状态 */
+.empty{padding:48px 20px;text-align:center;color:var(--color-text-3)}
+.empty .e-ico{font-size:48px;margin-bottom:12px;opacity:.5}
+.empty h4{color:var(--color-text-2);font-size:15px;margin-bottom:6px}
+
+/* 统计卡（管理后台） */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px}
+.stat-card{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:18px;box-shadow:var(--shadow-sm)}
+.stat-num{font-size:26px;font-weight:600;margin:4px 0}
+.stat-label{font-size:13px;color:var(--color-text-3)}
+.stat-delta{font-size:12px;font-weight:500}.delta-up{color:var(--color-success)}.delta-down{color:var(--color-danger)}
+.progress{height:8px;border-radius:4px;background:var(--color-striping);overflow:hidden}
+.progress>div{height:100%;background:var(--color-success)}
+
+/* 响应式 */
+@media (max-width:1023px){
+  .workbench{grid-template-columns:200px 1fr}
+  .detail-pane{display:none}
+}
+@media (max-width:767px){
+  .workbench{grid-template-columns:1fr}
+  .folder-pane,.download-pane{display:none}
+  .settings{grid-template-columns:1fr}
+  .settings-nav{display:flex;overflow-x:auto}
+  #tabs{font-size:0}
+  .compose-line label{width:48px}
+}
+</style>
+</head>
+<body>
+
+<div id="tabs">
+  <button data-screen="login" class="active">① 登录</button>
+  <button data-screen="register">② 注册</button>
+  <button data-screen="workbench">③ 主工作台</button>
+  <button data-screen="compose">④ 写邮件</button>
+  <button data-screen="accounts">⑤ 账户设置</button>
+  <button data-screen="addaccount">⑥ 添加账户向导</button>
+  <button data-screen="rules">⑦ 规则管理</button>
+  <button data-screen="transfer">⑧ 数据导入导出</button>
+  <button data-screen="admin">⑨ 管理后台</button>
+  <button data-screen="empty">⑩ 空/加载态</button>
+</div>
+
+<div id="toast-wrap"></div>
+
+<!-- ============ 登录 ============ -->
+<div id="login" class="screen active">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-logo"><div class="ico">✉</div>
+        <div class="auth-title">Mailbox Pro</div><div class="auth-sub">登录您的邮箱账户</div>
+      </div>
+      <div class="errorbar" id="loginErr"></div>
+      <div class="field"><label>用户名 / 邮箱</label><input class="input input-lg" id="loginUser" placeholder="user@example.com"></div>
+      <div class="field"><label>密码</label><input class="input input-lg" type="password" id="loginPass" placeholder="请输入密码"></div>
+      <div class="row-between"><span style="color:var(--color-text-2)"><input type="checkbox" checked> 记住我</span><button class="link">忘记密码？</button></div>
+      <button class="btn btn-primary btn-lg" style="width:100%" id="loginBtn">登 录</button>
+      <div class="auth-foot">没有账号？<button class="link" data-goto="register">注册</button> · © 2026 Mailbox Pro v1.0</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 注册 ============ -->
+<div id="register" class="screen">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-logo"><div class="ico">✉</div>
+        <div class="auth-title">创建账户</div><div class="auth-sub">注册 Mailbox Pro</div>
+      </div>
+      <div class="errorbar" id="regErr"></div>
+      <div class="field"><label>用户名</label><input class="input input-lg" placeholder="用户名"></div>
+      <div class="field"><label>邮箱</label><input class="input input-lg" placeholder="user@example.com"></div>
+      <div class="field"><label>密码</label><input class="input input-lg" type="password" placeholder="至少 8 位"></div>
+      <div class="field"><label>确认密码</label><input class="input input-lg" type="password" placeholder="再次输入密码"></div>
+      <button class="btn btn-primary btn-lg" style="width:100%" id="regBtn">注 册</button>
+      <div class="auth-foot">已有账户？<button class="link" data-goto="login">去登录</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 主工作台 ============ -->
+<div id="workbench" class="screen">
+  <div class="workbench">
+    <!-- 文件夹栏 -->
+    <div class="pane folder-pane">
+      <div class="pane-header"><span class="pane-title">文件夹</span><button class="btn btn-text" onclick="openModal('newFolder')">＋ 新建</button></div>
+      <div style="padding:12px"><button class="btn btn-primary" style="width:100%" data-goto="compose">✉ 写邮件</button></div>
+      <div style="overflow:auto">
+        <div class="folder-group">常用</div>
+        <button class="folder-item active" data-folder="inbox"><span>📥 收件箱</span><span class="cnt" id="cntInbox">5</span></button>
+        <button class="folder-item" data-folder="starred"><span>⭐ 星标</span><span class="cnt" id="cntStarred">3</span></button>
+        <button class="folder-item" data-folder="drafts"><span>📝 草稿</span><span class="cnt" id="cntDrafts">2</span></button>
+        <button class="folder-item" data-folder="sent"><span>↗ 已发送</span></button>
+        <button class="folder-item" data-folder="trash"><span>🗑 已删除</span></button>
+        <div class="folder-group">文件夹</div>
+        <button class="folder-item" data-folder="work"><span>📁 工作</span><span class="cnt">12</span></button>
+        <button class="folder-item" data-folder="important"><span>📁 重要</span><span class="cnt">1</span></button>
+        <button class="folder-item" data-folder="personal"><span>📁 个人</span></button>
+      </div>
+    </div>
+
+    <!-- 列表 -->
+    <div class="pane">
+      <div class="pane-header"><span class="pane-title" id="curFolder">收件箱</span>
+        <span style="display:flex;gap:6px">
+          <button class="btn btn-default" style="height:28px;padding:0 10px" onclick="document.querySelector('.input.search')&&document.querySelector('.input.search').focus()">搜索</button>
+        </span>
+      </div>
+      <div class="list-tool">
+        <input class="input search" id="searchInput" placeholder="🔍 搜索发件人 / 主题 / 正文...">
+      </div>
+      <div class="batchbar" id="batchbar" style="display:none">
+        <span id="batchCount" style="font-size:13px"></span>
+        <button class="btn btn-default" style="height:26px;padding:0 10px" onclick="toast('已标记为已读','success')">已读</button>
+        <button class="btn btn-default" style="height:26px;padding:0 10px" onclick="toast('已移到已删除','success')">删除</button>
+        <button class="btn btn-default" style="height:26px;padding:0 10px" onclick="toast('可批量移动','info')">移动</button>
+        <button class="btn btn-text" style="height:26px" onclick="clearBatch()">取消</button>
+      </div>
+      <div class="list-tool" style="border-top:1px solid var(--color-border)">
+        <label style="font-size:13px;display:flex;align-items:center;gap:6px"><input type="checkbox" id="selectAll"> 全选</label>
+        <button class="btn btn-text" id="fUnread" style="height:26px">仅看未读</button>
+        <button class="btn btn-text" id="finboxrel" style="height:26px">刷新</button>
+        <span style="flex:1"></span>
+        <button class="btn btn-text" style="height:26px" id="sortBtn">时间 ▾</button>
+      </div>
+      <div id="mailList" style="overflow:auto;flex:1"></div>
+      <div class="pager">共 <span id="listTotal">0</span> 条 · 每页 20
+        <button class="page-btn">‹</button><button class="page-btn on">1</button><button class="page-btn">2</button><button class="page-btn">3</button><button class="page-btn">›</button>
+      </div>
+    </div>
+
+    <!-- 详情 -->
+    <div class="pane detail-pane">
+      <div id="detailEmpty" class="empty" style="display:flex;flex-direction:column;justify-content:center;height:100%">
+        <div class="e-ico">📨</div><h4>选择一封邮件查看详情</h4><p>在主列表点击任意邮件即可在此预览内容</p>
+      </div>
+      <div id="detailPane" style="display:none;height:100%;display:flex;flex-direction:column">
+        <div class="detail" id="detailBody" style="flex:1;display:flex;flex-direction:column"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 写邮件 ============ -->
+<div id="compose" class="screen">
+  <div class="compose card">
+    <div class="pane-header" style="border-bottom:1px solid var(--color-border)">
+      <span class="pane-title">新邮件 · <span id="composeTo"></span></span>
+      <span style="font-size:12px;color:var(--color-text-3)">草稿将自动保存</span>
+    </div>
+    <div style="padding:0 20px 16px">
+      <div class="compose-line"><label>收件人</label><input class="input full" id="cTo" placeholder="输入邮箱，多个用逗号分隔"></div>
+      <div class="compose-line" style="border-bottom:none"><label></label><button class="btn-text" style="font-size:13px">抄送 · 密送 ▾</button></div>
+      <div class="compose-line"><label>主题</label><input class="input full" id="cSubject" placeholder="邮件主题"></div>
+      <div class="compose-line"><label>账户</label>
+        <select class="select-h"><option>工作 · alice@company.com</option><option>个人 · alice@gmail.com</option></select>
+      </div>
+      <div class="toolbar">
+        <button class="tb-btn" title="加粗" onclick="wrap('**')"><b>B</b></button>
+        <button class="tb-btn" title="斜体"><i>I</i></button>
+        <button class="tb-btn" title="下划线"><u>U</u></button>
+        <button class="tb-btn" title="无序列表">≡</button>
+        <button class="tb-btn" title="有序列表">1.</button>
+        <button class="tb-btn" title="链接">🔗</button>
+        <button class="tb-btn" title="图片">🖼</button>
+        <span style="flex:1"></span>
+        <button class="tb-btn" title="纯文本">TXT</button>
+      </div>
+      <div class="editor" id="cBody" contenteditable="true" style="border-bottom:1px solid var(--color-border)"></div>
+      <div id="cAtt" style="margin-top:12px"></div>
+      <div style="display:flex;align-items:center;gap:10px;padding-top:14px;flex-wrap:wrap">
+        <button class="btn btn-primary" id="sendBtn">发 送</button>
+        <button class="btn btn-default" onclick="toast('草稿已保存','success')">存草稿</button>
+        <button class="btn btn-default" style="border:none" onclick="addCFile()">📎 添加附件</button>
+        <span style="flex:1"></span>
+        <button class="btn btn-text">舍弃</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 账户设置 ============ -->
+<div id="accounts" class="screen">
+  <div class="settings">
+    <div class="card settings-nav" style="height:fit-content;padding:8px">
+      <div class="item active">邮箱账户</div>
+      <div class="item" data-nav="rules">邮件规则</div>
+      <div class="item" data-nav="general">通用设置</div>
+      <div class="item" data-nav="transfer">数据导入导出</div>
+    </div>
+    <div class="card form-panel">
+      <div class="ph"><span class="pane-title">邮箱账户</span>
+        <button class="btn btn-primary" onclick="openModal('wizard');startWizard()">＋ 添加账户</button>
+      </div>
+      <table class="tbl" style="margin-top:16px">
+        <thead><tr><th>名称</th><th>邮箱地址</th><th>协议</th><th>存储方式</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr><td>工作</td><td>alice@company.com</td><td>IMAP · TLS</td><td><span class="tag tag-primary">本地</span></td><td><span class="tag tag-success">正常</span></td><td><button class="btn-text">管理</button> <button class="btn-text">删除</button></td></tr>
+          <tr><td>个人</td><td>alice@gmail.com</td><td>IMAP · SSL</td><td><span class="tag tag-primary">MinIO</span></td><td><span class="tag tag-warning">同步中</span></td><td><button class="btn-text">管理</button> <button class="btn-text">删除</button></td></tr>
+        </tbody>
+      </table>
+      <div class="detail-addr" style="margin-top:16px">提示：新增账户支持自动探测服务器与加密方式；凭据将加密存储（AES-256-GCM）。</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 添加账户向导 ============ -->
+<div id="addaccount" class="container" style="max-width:560px;margin:0 auto">
+  <div class="card form-panel">
+    <div class="ph" style="border:none;padding:0 0 14px">
+      <span class="pane-title">添加邮箱账户</span>
+      <button class="btn btn-primary" onclick="openModal('wizard');startWizard()">打开向导（弹窗演示）</button>
+    </div>
+    <div class="wizard-steps">
+      <div class="wstep on">1 账户信息</div><div class="wstep">2 协议设置</div><div class="wstep">3 连接测试</div><div class="wstep">4 完成</div>
+    </div>
+    <div class="field"><label>邮箱地址 *</label><input class="input" value="new@example.com"></div>
+    <div class="field"><label>显示名称</label><input class="input" value="新账户"></div>
+    <div style="display:flex;gap:8px"><button class="btn btn-primary" onclick="demoDetect()">检测服务器配置</button></div>
+    <div class="detect-result" id="detectBox"></div>
+    <div class="form-actions" style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+      <button class="btn btn-default">上一步</button><button class="btn btn-primary">下一步</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 规则管理 ============ -->
+<div id="rules" class="screen">
+  <div class="settings">
+    <div class="card settings-nav" style="height:fit-content;padding:8px">
+      <div class="item" data-nav="accounts">邮箱账户</div>
+      <div class="item active">邮件规则</div>
+      <div class="item" data-nav="general">通用设置</div>
+      <div class="item" data-nav="transfer">数据导入导出</div>
+    </div>
+    <div class="card form-panel">
+      <div class="ph"><span class="pane-title">邮件规则</span>
+        <span style="display:flex;gap:8px">
+          <button class="btn btn-default" onclick="toast('拖动可调整优先级','info')">⇅ 排序</button>
+          <button class="btn btn-primary" onclick="openModal('ruleEditor')">＋ 新建规则</button>
+        </span>
+      </div>
+      <table class="tbl" style="margin-top:16px">
+        <thead><tr><th>优先级</th><th>规则名称</th><th>条件</th><th>动作</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody id="ruleBody">
+          <tr><td>1</td><td>老板邮件</td><td>发件人 包含 boss</td><td>移动到「重要」</td><td><span class="tag tag-success">启用</span></td><td><button class="btn-text" onclick="openModal('ruleEditor')">编辑</button> <button class="btn-text" onclick="twoole('停用','老板邮件')">停用</button> <button class="btn-text">删除</button></td></tr>
+          <tr><td>2</td><td>发票附件</td><td>含附件</td><td>打星 + 标记已读</td><td><span class="tag tag-success">启用</span></td><td><button class="btn-text" onclick="openModal('ruleEditor')">编辑</button> <button class="btn-text" onclick="twoole('停用','发票附件')">停用</button> <button class="btn-text">删除</button></td></tr>
+          <tr><td>3</td><td>促销邮件</td><td>主题 包含 促销</td><td>移动到「垃圾箱」</td><td><span class="tag tag-info">停用</span></td><td><button class="btn-text" onclick="openModal('ruleEditor')">编辑</button> <button class="btn-text">启用</button> <button class="btn-text">删除</button></td></tr>
+        </tbody>
+      </table>
+      <div class="detail-addr" style="margin-top:16px">规则按优先级顺序执行，命中后自动处理新到邮件；可实时开关、拖动排序。</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 数据导入导出 ============ -->
+<div id="transfer" class="screen">
+  <div class="container" style="max-width:640px;margin:0 auto">
+    <div class="card form-panel">
+      <div class="ph" style="border:none;padding:0 0 14px"><span class="pane-title">数据迁移</span>
+        <span class="tag tag-primary">附件：本地 + MinIO</span>
+      </div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div style="flex:1;min-width:240px">
+          <h4 style="font-size:15px;margin-bottom:12px">导入 PST</h4>
+          <div style="border:2px dashed var(--color-border);border-radius:var(--radius-md);padding:32px 20px;text-align:center;cursor:pointer" onclick="simulateImport()">
+            <div style="font-size:36px;margin-bottom:8px">📂</div>
+            <div style="font-size:14px;font-weight:500">点击或拖拽上传 .pst 文件</div>
+            <div class="detail-addr" style="margin-top:4px">单个文件 ≤ 100MB</div>
+          </div>
+          <div class="stepper" style="margin-top:16px">
+            <div class="seg"><div class="seg-bar" id="impBar" style="width:0"></div></div>
+          </div>
+          <div id="impStatus" class="detail-addr" style="text-align:center">等待导入</div>
+        </div>
+        <div style="flex:1;min-width:240px">
+          <h4 style="font-size:15px;margin-bottom:12px">导出 PST（供 Outlook 读取）</h4>
+          <div class="field"><label>目标文件夹</label>
+            <select class="select-h" style="width:100%"><option>收件箱</option><option>全部</option><option>工作</option><option>草稿</option></select>
+          </div>
+          <div class="field"><label>导出内容</label>
+            <select class="select-h" style="width:100%"><option>邮件 + 附件（完整）</option><option>仅邮件正文</option></select>
+          </div>
+          <button class="btn btn-primary" style="width:100%" onclick="simulateExport()">开始导出</button>
+          <div style="margin-top:12px;padding:12px;background:var(--color-bg);border-radius:var(--radius-sm)">
+            <div class="detail-addr">导出文件：可被 Outlook 2013/2016/2019/365 打开读取</div>
+            <div id="expResult" style="margin-top:8px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 管理后台 ============ -->
+<div id="admin" class="screen">
+  <div class="container" style="max-width:1100px;margin:0 auto">
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-label">注册用户</div><div class="stat-num">8,204</div><div class="stat-delta delta-up">▲ 12%</div></div>
+      <div class="stat-card"><div class="stat-label">活跃用户</div><div class="stat-num">3,156</div><div class="stat-delta delta-up">▲ 8%</div></div>
+      <div class="stat-card"><div class="stat-label">今日收发</div><div class="stat-num">12,847</div><div class="stat-delta delta-up">▲ 15%</div></div>
+      <div class="stat-card"><div class="stat-label">存储占用</div><div class="stat-num">1.2 TB</div><div class="stat-delta delta-up">▲ 5%</div></div>
+      <div class="stat-card"><div class="stat-label">在线 WebSocket</div><div class="stat-num">2,431</div><div class="stat-delta delta-up">正常</div></div>
+      <div class="stat-card"><div class="stat-label">推送平均时延</div><div class="stat-num">1.8s</div><div class="stat-delta delta-up">≤5s ✓</div></div>
+    </div>
+    <div class="card" style="padding:20px">
+      <div class="ph" style="border:none;padding:0 0 14px"><span class="pane-title">用户列表</span>
+        <input class="input" style="width:220px" placeholder="🔍 搜索用户...">
+      </div>
+      <table class="tbl">
+        <thead><tr><th>用户名</th><th>邮箱</th><th>配额</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr><td>alice</td><td>alice@company.com</td><td><div style="display:flex;align-items:center;gap:8px"><div class="progress" style="width:90px"><div style="width:62%"></div></div>1.2/2 GB</div></td><td><span class="tag tag-success">正常</span></td><td><button class="btn-text">编辑</button> <button class="btn-text">禁用</button></td></tr>
+          <tr><td>bob</td><td>bob@company.com</td><td><div style="display:flex;align-items:center;gap:8px"><div class="progress" style="width:90px"><div style="width:88%"></div></div>4.4/5 GB</div></td><td><span class="tag tag-warning">超限预警</span></td><td><button class="btn-text">编辑</button> <button class="btn-text">禁用</button></td></tr>
+          <tr><td>carol</td><td>carol@gmail.com</td><td><div style="display:flex;align-items:center;gap:8px"><div class="progress" style="width:90px"><div style="width:20%"></div></div>0.2/1 GB</div></td><td><span class="tag tag-danger">已禁用</span></td><td><button class="btn-text">编辑</button> <button class="btn-text">启用</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 空/加载态 ============ -->
+<div id="empty" class="screen">
+  <div style="max-width:640px;margin:0 auto">
+    <div class="card empty"><div class="e-ico">📭</div><h4>收件箱为空</h4><p>收件箱里很干净，来一封新邮件吧</p><div style="margin-top:14px"><button class="btn btn-primary">写邮件</button></div></div>
+    <div class="card" style="margin-top:16px;padding:20px">
+      <h4 style="font-size:15px;margin-bottom:12px">加载态示例</h4>
+      <div class="skeleton" style="display:flex;flex-direction:column;gap:12px">
+        <div style="height:16px;width:60%;background:linear-gradient(90deg,var(--color-striping) 25%,var(--color-border) 40%,var(--color-striping) 55%);background-size:200% 100%;animation:sd 1.2s infinite"></div>
+        <div style="height:14px;width:80%;background:var(--color-striping)"></div>
+        <div style="height:14px;width:90%;background:var(--color-striping)"></div>
+        <div style="height:14px;width:70%;background:var(--color-striping)"></div>
+      </div>
+      <style>@keyframes sd{0%{background-position:200% 0}100%{background-position:-200% 0}}</style>
+    </div>
+    <div class="card" style="margin-top:16px;padding:16px">
+      <div style="display:flex;align-items:center;gap:10px;font-size:14px">
+        <span class="tag tag-success">成功</span><span class="tag tag-warning">警告</span><span class="tag tag-danger">错误</span><span class="tag tag-info">信息</span><span class="tag tag-primary">进行中</span>
+        <button class="btn btn-default" style="margin-left:auto" onclick="toast('这是一条通知','info')">演示 Toast</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 弹层：新建文件夹 ============ -->
+<div class="modal" id="newFolder">
+  <div class="modal-card">
+    <div class="modal-head">新建文件夹</div>
+    <div class="field"><label>文件夹名称</label><input class="input" id="nfName" placeholder="例如：客户"></div>
+    <div class="field"><label>位置</label><select class="select-h" style="width:100%"><option>收件箱（顶层）</option><option>工作</option></select></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+      <button class="btn btn-default" onclick="openModal('newFolder',false)">取消</button>
+      <button class="btn btn-primary" onclick="openModal('newFolder',false);toast('文件夹已创建','success')">创建</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 弹层：规则编辑器 ============ -->
+<div class="modal" id="ruleEditor">
+  <div class="modal-card">
+    <div class="modal-head">新建规则</div>
+    <div class="field"><label>规则名称</label><input class="input" placeholder="例如：重要客户" value="重要客户邮件"></div>
+    <div class="field"><label>当满足以下条件</label>
+      <div style="border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:12px;margin-bottom:10px">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+          <select class="select-h"><option>发件人</option><option>收件人</option><option>主题</option><option>正文</option><option>大小</option><option>含附件</option></select>
+          <select class="select-h"><option>包含</option><option>等于</option><option>不包含</option></select>
+          <input class="input" style="flex:1;min-width:120px" placeholder="值">
+        </div>
+        <button class="btn-text" style="font-size:13px">＋ 添加条件</button>
+      </div>
+    </div>
+    <div class="field"><label>则执行</label>
+      <div style="border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:12px">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+          <select class="select-h"><option>移动到文件夹</option><option>标记已读</option><option>打星标</option><option>删除</option><option>转发</option></select>
+          <select class="select-h"><option>重要</option><option>工作</option><option>个人</option></select>
+        </div>
+        <button class="btn-text" style="font-size:13px">＋ 添加动作</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:24px">
+      <button class="btn btn-default" onclick="openModal('ruleEditor',false)">取消</button>
+      <button class="btn btn-primary" onclick="openModal('ruleEditor',false);toast('规则已保存','success')">保存规则</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 弹层：添加账户向导 ============ -->
+<div class="modal" id="wizard">
+  <div class="modal-card">
+    <div class="wizard-steps">
+      <div class="wstep on" id="ws1">1 账户</div><div class="wstep" id="ws2">2 协议</div><div class="wstep" id="ws3">3 测试</div><div class="wstep" id="ws4">4 完成</div>
+    </div>
+    <div id="step1">
+      <div class="field"><label>邮箱地址 *</label><input class="input" id="wEmail" placeholder="user@example.com"></div>
+      <div class="field"><label>显示名称</label><input class="input" placeholder="自定义名称"></div>
+      <div class="field"><label>认证方式</label>
+        <select class="select-h" style="width:100%"><option>密码 / 应用专用密码</option><option>OAuth2</option></select>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-primary" id="wNext1">检测并继续</button></div>
+    </div>
+    <div id="step2" style="display:none">
+      <div class="probe-result" id="probeResult">
+        <div class="field"><label>接收协议</label>
+          <div class="probe-item checked"><span>📥</span><div><div style="font-weight:500">IMAP · 993 · SSL/TLS</div><div class="detail-addr">imap.example.com — 推荐，支持实时推送</div></div></div>
+          <div class="probe-item"><span>⬇</span><div><div style="font-weight:500">POP3 · 995 · SSL/TLS</div><div class="detail-addr">pop.example.com — 不支持 IDLE，降级轮询</div></div></div>
+        </div>
+        <div class="field"><label>发送协议（SMTP）</label>
+          <div class="probe-item checked" style="cursor:default"><span>↗</span><div><div style="font-weight:500">SMTP · 587 · STARTTLS</div><div class="detail-addr">smtp.example.com</div></div></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:space-between"><button class="btn btn-default" onclick="wizardStep(1)">上一步</button><button class="btn btn-primary" onclick="wizardStep(3)">下一步</button></div>
+    </div>
+    <div id="step3" style="display:none">
+      <div style="text-align:center;padding:10px 0 16px" id="testAnim">
+        <div style="font-size:40px">🔄</div>
+        <div style="margin-top:8px" id="testTxt">正在连接服务器并验证凭据...</div>
+      </div>
+    </div>
+    <div id="step4" style="display:none;text-align:center;padding:16px 0">
+      <div style="font-size:44px;color:var(--color-success)">✓</div>
+      <h4 style="margin:8px 0">账户添加成功</h4>
+      <div class="detail-addr">alice@example.com · 已开始首次同步</div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:20px">
+        <button class="btn btn-primary" onclick="openModal('wizard',false);toast('账户已添加','success')">完成</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============ 原型切换 ============ */
+function showScreen(id){
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.screen===id));
+  document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active',s.id===id));
+  if(id==='workbench') renderList();
+}
+document.querySelectorAll('#tabs button').forEach(b=>b.addEventListener('click',()=>showScreen(b.dataset.screen)));
+document.querySelectorAll('[data-goto]').forEach(el=>el.addEventListener('click',e=>{e.preventDefault();showScreen(el.dataset.goto)}));
+
+/* Toast */
+function toast(msg,type='success'){
+  const w=document.getElementById('toast-wrap');
+  const t=document.createElement('div');
+  t.className='toast '+type;
+  t.innerHTML=`<div class="t-title">${type==='success'?'成功':type==='warning'?'提示':type==='danger'?'错误':'通知'}</div>${msg}`;
+  w.appendChild(t); setTimeout(()=>{t.style.opacity=0;t.style.transition='opacity .3s';setTimeout(()=>t.remove(),300)},2200);
+}
+
+/* 弹层 */
+function openModal(id,open=true){document.getElementById(id).classList.toggle('open',open)}
+document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open')}));
+
+/* ============ 登录/注册验证 ============ */
+document.getElementById('loginBtn').addEventListener('click',()=>{
+  const u=document.getElementById('loginUser').value;
+  if(!u||!document.getElementById('loginPass').value){
+    document.getElementById('loginErr').style.display='block';
+    document.getElementById('loginErr').textContent='请输入用户名和密码';
+    return;
+  }
+  toast('登录成功，正在进入收件箱','success');
+  setTimeout(()=>showScreen('workbench'),800);
+});
+document.getElementById('regBtn').addEventListener('click',()=>{
+  document.getElementById('regErr').style.display='block';
+  document.getElementById('regErr').textContent='密码强度不足：需包含字母与数字（演示）';
+});
+
+/* ============ 数据（模拟） ============ */
+const mailData={
+  inbox:[
+    {id:1,folder:'inbox',star:false,read:false,sender:'张三',from:'zhangsan@example.com',time:'09:45',date:'2026-09-22 09:45',subj:'月度项目汇报（内含图表）',att:'月度汇报.pptx',preview:'附件为本月项目进度汇报，请查收。核心功能已完成 70%...',body:'你好，\n附件为本月项目进度汇报，请查收。\n· 核心功能已完成 70%\n· 预计下月初进入联调\n· 风险项：第三方依赖升级\n有问题请随时联系。'},
+    {id:2,folder:'inbox',star:false,read:false,sender:'李四',from:'lisi@example.com',time:'08:30',date:'2026-09-22 08:30',subj:'会议邀请：产品评审会 · 会议室A',preview:'明天上午 10:00 在会议室 A 召开产品评审会...',body:'明天上午 10:00 在会议室 A 召开产品评审会，请准时参加。'},
+    {id:3,folder:'inbox',star:true,read:true,sender:'王五',from:'wangwu@example.com',time:'昨天',date:'2026-09-21 15:20',subj:'发票与合同附件',att:'合同.pdf,发票.pdf',preview:'已上传发票与合同，请查收并确认。',body:'已上传发票与合同，请查收并确认。'},
+    {id:4,folder:'inbox',star:false,read:true,sender:'系统通知',from:'noreply@example.com',time:'周一',date:'2026-09-20 10:00',subj:'验证您的邮箱以完成安全设置',preview:'为确保账户安全，请完成邮箱验证。',body:'为确保账户安全，请完成邮箱验证。'},
+    {id:5,folder:'inbox',star:false,read:true,sender:'技术支持',from:'support@example.com',time:'上周',date:'2026-09-16 11:40',subj:'Re: 关于附件无法打开的反馈',preview:'已定位问题，请升级客户端版本。',body:'已定位问题，请升级客户端版本。'}
+  ],
+  starred:[{id:6,folder:'starred',star:true,read:false,sender:'王五',from:'wangwu@example.com',time:'昨天',subj:'发票与合同附件',preview:'已上传发票与合同',body:'附件见原邮件。'}],
+  drafts:[{id:7,folder:'drafts',star:false,read:true,sender:'（草稿）',from:'',time:'09:20',subj:'待发送：周报提纲',preview:'草稿内容暂未填写完整...',body:'（草稿正文）'}],
+  sent:[{id:8,folder:'sent',star:false,read:true,sender:'我（alice）',from:'alice@company.com',time:'09:00',subj:'发送：确认会议安排',preview:'已发送',body:'会议安排已确认。'}],
+  trash:[{id:9,folder:'trash',star:false,read:true,sender:'旧联系人',from:'x@y.com',time:'上月',subj:'已删除邮件',preview:'演示一条已删除的邮件',body:'演示。'}],
+  work:[{id:11,folder:'work',star:false,read:false,sender:'陈六',from:'chen@example.com',time:'08:10',subj:'季度 KPI 汇总',preview:'请补充 Q3 数据',body:'请补充 Q3 数据。'}],
+  important:[{id:12,folder:'important',star:false,read:false,sender:'老板',from:'boss@example.com',time:'07:00',subj:'【重要】客户拜访安排',preview:'请安排本周客户拜访',body:'请安排本周客户拜访。'}],
+  personal:[]
+};
+const folderNames={inbox:'收件箱',starred:'星标',drafts:'草稿',sent:'已发送',trash:'已删除',work:'工作',important:'重要',personal:'个人'};
+let currentFolder='inbox';
+let onlyUnread=false;
+
+function folderCount(k){return (mailData[k]||[]).filter(m=>!m.read).length}
+function updateCounts(){
+  for(const f in folderNames){const el=document.getElementById('cnt'+f[0].toUpperCase()+f.slice(1));}
+  document.getElementById('cntInbox').textContent=folderCount('inbox');
+  document.getElementById('cntStarred').textContent=(mailData.starred||[]).length;
+  document.getElementById('cntDrafts').textContent=(mailData.drafts||[]).length;
+}
+document.querySelectorAll('[data-folder]').forEach(f=>f.addEventListener('click',()=>{
+  document.querySelectorAll('[data-folder]').forEach(x=>x.classList.remove('active'));
+  f.classList.add('active');
+  currentFolder=f.dataset.folder;
+  document.getElementById('curFolder').textContent=folderNames[currentFolder];
+  renderList();
+}));
+
+function renderList(){
+  let list=(mailData[currentFolder]||[]).slice();
+  let total=list.length;
+  document.getElementById('listTotal').textContent=total;
+  const q=document.getElementById('searchInput').value.trim().toLowerCase();
+  if(q) list=list.filter(m=>(m.sender||'').toLowerCase().includes(q)||(m.subj||'').toLowerCase().includes(q));
+  if(onlyUnread) list=list.filter(m=>!m.read);
+  const box=document.getElementById('mailList');
+  if(!list.length){
+    box.innerHTML=`<div class="empty"><div class="e-ico">📭</div><h4>没有邮件</h4><p>${q?'未找到匹配结果':'该文件夹为空'}</p></div>`;
+    return;
+  }
+  box.innerHTML=list.map(m=>`
+    <div class="mail-row ${m.read&&m.folder!=='drafts'?'read':''} ${m.folder==='drafts'?'read':''}" data-id="${m.id}" data-folder="${m.folder}">
+      <input type="checkbox" class="row-check" data-id="${m.id}">
+      <span class="mail-star ${m.star?'on':''}" data-star="${m.id}" title="星标">${m.star?'★':'☆'}</span>
+      <div class="mail-mid">
+        <div class="mail-who"><div class="av">${(m.sender||'?').charAt(0)}</div>
+          <div class="mail-sender"><span class="sender">${m.sender}</span><span class="mail-time">${m.time}</span></div>
+        </div>
+        <div class="mail-preview"><span class="s-att">${m.att?'📎 ':''}</span>${m.subj||m.preview}</div>
+      </div>
+    </div>`).join('');
+  // 事件
+  box.querySelectorAll('.mail-row').forEach(r=>r.addEventListener('click',e=>{
+    if(e.target.closest('.mail-star')||e.target.closest('.row-check'))return;
+    const id=+r.dataset.id;const f=r.dataset.folder;
+    const m=(mailData[f]||[]).find(x=>x.id===id);
+    showDetail(m);
+  }));
+  box.querySelectorAll('.mail-star').forEach(s=>s.addEventListener('click',e=>{
+    e.stopPropagation();
+    const id=+s.dataset.star;
+    for(const f in mailData){const arr=mailData[f]||[];const m=arr.find(x=>x.id===id);if(m){m.star=!m.star;break;}}
+    renderList();
+  }));
+  box.querySelectorAll('.row-check').forEach(c=>c.addEventListener('change',updateBatch));
+  updateCounts();
+}
+document.getElementById('searchInput').addEventListener('input',renderList);
+document.getElementById('selectAll').addEventListener('change',e=>{
+  document.querySelectorAll('.row-check').forEach(c=>c.checked=e.target.checked);updateBatch();
+});
+document.getElementById('fUnread').addEventListener('click',()=>{onlyUnread=!onlyUnread;document.getElementById('fUnread').style.color=onlyUnread?'var(--color-primary)':'';renderList()});
+document.getElementById('finboxrel').addEventListener('click',()=>{toast('邮件已刷新','success');renderList()});
+
+function updateBatch(){
+  const arr=Array.from(document.querySelectorAll('.row-check:checked'));
+  document.getElementById('batchbar').style.display=arr.length?'flex':'none';
+  document.getElementById('batchCount').textContent=`已选 ${arr.length} 项`;
+}
+function clearBatch(){document.querySelectorAll('.row-check').forEach(c=>c.checked=false);updateBatch()}
+
+function showDetail(m){
+  if(!m){return}
+  document.getElementById('detailEmpty').style.display='none';
+  const dp=document.getElementById('detailBody');
+  dp.innerHTML=`
+    <div class="detail-sub">${m.subj||'(无主题)'}</div>
+    <div class="detail-from">
+      <div class="av">${(m.sender||'?').charAt(0)}</div>
+      <div><div class="detail-name">${m.sender} ${m.from?'&lt;'+m.from+'&gt;':''}</div>
+      <div class="detail-addr">${m.folder==='drafts'?'草稿':'发件人'}</div></div>
+      <div class="detail-meta">${m.from?'收件人：我':'未发送'}<br>${m.date||''}</div>
+    </div>
+    <div class="detail-tools">
+      <button class="btn btn-default" onclick="toast('已打开回复','info')">↩ 回复</button>
+      <button class="btn btn-default" onclick="toast('已打开转发','info')">↪ 转发</button>
+      <button class="btn btn-default" onclick="toggleDetailStar(${m.id})">★ 星标</button>
+      <button class="btn btn-danger" onclick="toast('已移到已删除','success')">🗑 删除</button>
+    </div>
+    <div class="detail-body" style="white-space:pre-wrap">${m.body||m.preview||''}</div>`;
+  if(m.att){
+    const atts=m.att.split(',');
+    dp.insertAdjacentHTML('beforeend',atts.map(a=>`
+      <div class="attach"><span style="font-size:20px">📎</span>
+        <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500">${a.trim()}</div>
+        <div class="detail-addr">${(Math.random()*2+0.5).toFixed(1)} MB</div></div>
+        <button class="btn btn-text" onclick="toast('开始下载 ${a.trim()}','info')">下载</button>
+      </div>`).join(''));
+  }
+}
+function toggleDetailStar(id){for(const f in mailData){const m=(mailData[f]||[]).find(x=>x.id===id);if(m){m.star=!m.star;break;}}renderList();}
+
+/* ============ 写邮件 ============ */
+function wrap(marker){
+  const ed=document.getElementById('cBody');
+  const sel=window.getSelection();
+  if(sel && sel.rangeCount && ed.contains(sel.anchorNode)){
+    const range=sel.getRangeAt(0);const text=range.toString()||'文本';
+    range.deleteContents();range.insertNode(document.createTextNode(marker+text+marker));
+    toast(`已应用格式 ${marker==='**'?'粗体':'样式'}（演示）`,'info');
+  } else { toast('请先在正文选区后点击格式按钮','warning'); }
+}
+function addCFile(){
+  const box=document.getElementById('cAtt');
+  const n=box.children.length+1;
+  box.insertAdjacentHTML('beforeend',`<div class="attach" style="width:100%;max-width:360px">
+    <span style="font-size:20px">📎</span>
+    <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500">附件${n}.docx</div><div class="detail-addr">0.4 MB · 上传中 <span style="color:var(--color-success)">✓</span></div></div>
+    <button class="btn btn-text" onclick="this.closest('.attach').remove()">移除</button></div>`);
+}
+document.getElementById('sendBtn').addEventListener('click',()=>{
+  const to=document.getElementById('cTo').value.trim();
+  if(!to){toast('请填写收件人','danger');return}
+  toast('邮件已发送，已保存到「已发送」','success');
+  setTimeout(()=>showScreen('workbench'),700);
+});
+document.getElementById('cBody').addEventListener('input',()=>{document.getElementById('composeTo').textContent='草稿保存于 '+new Date().toLocaleTimeString('zh',{hour:'2-digit',minute:'2-digit'})});
+
+/* ============ 通用设置页(内嵌在本文件 accounts 逻辑) ============ */
+document.querySelectorAll('[data-nav]').forEach(n=>n.addEventListener('click',()=>showScreen(n.dataset.nav)));
+
+/* ============ 账户向导 ============ */
+function startWizard(){wizardStep(1)}
+let wStep=1;
+function wizardStep(s){
+  wStep=s;
+  ['ws1','ws2','ws3','ws4'].forEach((id,i)=>document.getElementById(id).classList.toggle('on',i<s));
+  for(let i=1;i<=4;i++)document.getElementById('step'+i).style.display=i===s?'block':'none';
+  if(s===3){
+    let t=document.getElementById('testTxt');t.textContent='正在连接服务器并验证凭据...';
+    setTimeout(()=>{t.innerHTML='<span style="color:var(--color-success)">✓ 连接成功，IMAP IDLE 已启用</span>';wizardStep(4)},1200);
+  }
+}
+document.getElementById('wNext1').addEventListener('click',()=>{document.getElementById('ws1').classList.add('on');wizardStep(2)});
+document.querySelectorAll('.probe-item').forEach(p=>p.addEventListener('click',()=>{document.querySelectorAll('.probe-item').forEach(x=>x.classList.remove('checked'));p.classList.add('checked')}));
+
+/* 添加账户向导页（内嵌演示）检测服务器配置 */
+function demoDetect(){
+  const box=document.getElementById('detectBox');
+  box.innerHTML=`<div class="detail-addr" style="color:var(--color-primary)">⏳ 正在探测服务器...</div>`;
+  setTimeout(()=>{box.innerHTML=`
+    <div class="probe-item checked"><span>📥</span><div><div style="font-weight:500">IMAP · 993 · SSL/TLS ✓</div><div class="detail-addr">imap.example.com — 推荐，支持实时推送</div></div></div>
+    <div class="probe-item"><span>⬇</span><div><div style="font-weight:500">POP3 · 995 · SSL/TLS</div><div class="detail-addr">pop.example.com — 不支持 IDLE，降级轮询</div></div></div>
+    <div class="probe-item"><span>↗</span><div><div style="font-weight:500">SMTP · 587 · STARTTLS ✓</div><div class="detail-addr">smtp.example.com</div></div></div>`;
+    toast('已自动探测到服务器配置','success');
+  },900);
+}
+
+/* ============ 导入导出 ============ */
+function simulateImport(){
+  let p=0;document.getElementById('impStatus').textContent='正在解析 PST 文件...';
+  const iv=setInterval(()=>{p+=8;p=Math.min(100,p);document.getElementById('impBar').style.width=p+'%';
+    if(p>=100){clearInterval(iv);document.getElementById('impStatus').textContent='✔ 导入完成：248 封邮件已写入账户存储';toast('PST 导入完成','success')}
+    else document.getElementById('impStatus').textContent='导入进度 '+p+'%';
+  },120);
+}
+function simulateExport(){
+  let p=0;
+  const btn=document.getElementById('expResult');
+  btn.innerHTML=`<div class="stepper"><div class="seg"><div class="seg-bar" id="exBar" style="width:0"></div></div></div>
+    <div class="detail-addr" style="text-align:center">正在打包生成 .pst...</div>`;
+  const iv=setInterval(()=>{p+=7;p=Math.min(100,p);const b=document.getElementById('exBar');if(b)b.style.width=p+'%';
+    if(p>=100){clearInterval(iv);btn.innerHTML=`<button class="btn btn-primary" style="width:100%" onclick="toast('正在下载 .pst','success')">⬇ 下载 export.pst（12.4 MB）</button>
+      <div class="detail-addr" style="text-align:center;margin-top:6px">可被 Outlook 2013-365 打开读取</div>`}
+  },120);
+}
+function twoole(a,n){toast(`已${a}：${n}`,'info')}
+
+/* 默认渲染 */
+updateCounts();
+renderList();
+</script>
+</body>
+</html>
