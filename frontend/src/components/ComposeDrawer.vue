@@ -58,7 +58,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { mailApi } from '@/api'
+import { mailApi, attachmentApi } from '@/api'
 
 const props = defineProps<{
   accounts: any[]
@@ -72,7 +72,7 @@ const cc = ref<string[]>([])
 const bcc = ref<string[]>([])
 const subject = ref('')
 const editor = ref<HTMLElement>()
-const files = ref<File[]>([])
+const files = ref<Array<{ file: File; id?: number }>>([])
 const sending = ref(false)
 
 onMounted(() => {
@@ -106,7 +106,20 @@ function onInput() {
   /* contenteditable 输入处理 */
 }
 function onFileAdd(file: any) {
-  files.value.push(file.raw)
+  if (file.raw) files.value.push({ file: file.raw })
+}
+
+// 将尚未上传的附件逐个上传，返回全部附件 id（已上传的复用，避免重复上传）
+async function uploadAttachments(): Promise<number[]> {
+  const ids: number[] = []
+  for (const item of files.value) {
+    if (item.id == null) {
+      const meta = await attachmentApi.upload(item.file, accountId.value)
+      item.id = meta.id
+    }
+    ids.push(item.id)
+  }
+  return ids
 }
 
 async function send() {
@@ -120,13 +133,15 @@ async function send() {
   }
   sending.value = true
   try {
+    const attachments = await uploadAttachments()
     await mailApi.send({
       accountId: accountId.value,
       to: to.value,
       cc: cc.value,
       bcc: bcc.value,
       subject: subject.value,
-      bodyHtml: editor.value?.innerHTML || ''
+      bodyHtml: editor.value?.innerHTML || '',
+      attachments
     })
     ElMessage.success('邮件已发送')
     emit('sent')
@@ -136,13 +151,15 @@ async function send() {
 }
 
 async function saveDraft() {
+  const attachments = await uploadAttachments()
   await mailApi.saveDraft({
     accountId: accountId.value,
     to: to.value,
     cc: cc.value,
     bcc: bcc.value,
     subject: subject.value,
-    bodyHtml: editor.value?.innerHTML || ''
+    bodyHtml: editor.value?.innerHTML || '',
+    attachments
   })
   ElMessage.success('草稿已保存')
 }

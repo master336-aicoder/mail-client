@@ -22,6 +22,14 @@ public interface MessageRepository extends JpaRepository<Message, Long>, JpaSpec
 
     Optional<Message> findByAccountIdAndFolderIdAndRemoteUid(Long accountId, Long folderId, String remoteUid);
 
+    /**
+     * 该账户收件箱已入库的最高 IMAP 消息序号（remote_uid 存的是消息序号）。
+     * 用于增量拉取：仅取回序号大于此值的新邮件。CAST 为无符号整数，非数值返回 0，DB 层安全。
+     */
+    @Query(value = "select coalesce(max(cast(remote_uid as unsigned)), 0) from messages "
+            + "where account_id = :accountId and folder_id = :folderId and deleted = 0", nativeQuery = true)
+    long maxRemoteSeq(@Param("accountId") Long accountId, @Param("folderId") Long folderId);
+
     List<Message> findByUserIdAndDeletedFalse(Long userId);
 
     long countByFolderIdAndDeletedFalse(Long folderId);

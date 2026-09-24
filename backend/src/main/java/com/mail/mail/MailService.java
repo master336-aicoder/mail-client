@@ -169,7 +169,15 @@ public class MailService {
         m.setBodyText(stripHtml(req.getBodyHtml()));
         m.setDate(LocalDateTime.now());
         m.setDraft(true);
-        return messageRepository.save(m).getId();
+        boolean hasAtt = req.getAttachments() != null && !req.getAttachments().isEmpty();
+        m.setHasAttach(hasAtt);
+        Long draftId = messageRepository.save(m).getId();
+        if (hasAtt) {
+            List<AttachmentMeta> atts = attachmentMetaRepository.findAllById(req.getAttachments());
+            atts.forEach(a -> a.setMessageId(draftId));
+            attachmentMetaRepository.saveAll(atts);
+        }
+        return draftId;
     }
 
     @Transactional

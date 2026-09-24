@@ -94,6 +94,11 @@ public class ImapMailClient implements MailClient {
 
     @Override
     public List<Message> fetchInbox(MailAccount account) {
+        return fetchInbox(account, 0);
+    }
+
+    @Override
+    public List<Message> fetchInbox(MailAccount account, int sinceSeq) {
         List<Message> result = new ArrayList<>();
         Properties props = propsOf(account);
         Store store = null;
@@ -110,8 +115,31 @@ public class ImapMailClient implements MailClient {
                 Folder inbox = store.getFolder("INBOX");
                 inbox.open(Folder.READ_ONLY);
                 int total = inbox.getMessageCount();
-                int from = Math.max(1, total - RECENT_WINDOW + 1);
-                jakarta.mail.Message[] messages = inbox.getMessages(from, total);
+                if (total == 0) {
+                    if (inbox.isOpen()) inbox.close(false);
+                    return result;
+                }
+                int windowFrom = Math.max(1, total - RECENT_WINDOW + 1);
+                int start;
+                if (sinceSeq <= 0) {
+                    // 首次/未知：仅取最近窗口，避免全量遍历整箱
+                    start = windowFrom;
+                } else if (total > sinceSeq) {
+                    // 有新邮件：从序号高水位之后取，但下界不早于最近窗口（保留自愈能力）
+                    start = Math.max(windowFrom, sinceSeq + 1);
+                } else if (total == sinceSeq) {
+                    // 无变化：稳态零拉取
+                    if (inbox.isOpen()) inbox.close(false);
+                    return result;
+                } else {
+                    // total < sinceSeq：发生过删除导致序号重排，回退全窗口重扫以自愈
+                    start = windowFrom;
+                }
+                if (start > total) {
+                    if (inbox.isOpen()) inbox.close(false);
+                    return result;
+                }
+                jakarta.mail.Message[] messages = inbox.getMessages(start, total);
                 // 预取信封/内容信息，减少逐条头部往返
                 FetchProfile fp = new FetchProfile();
                 fp.add(FetchProfile.Item.ENVELOPE);

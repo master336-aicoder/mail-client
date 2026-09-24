@@ -156,6 +156,23 @@ export interface TransferStatus {
   downloadUrl?: string
 }
 
+export interface AttachmentMeta {
+  id: number
+  name: string
+  mimeType?: string
+  size: number
+}
+
+export const attachmentApi = {
+  upload: (file: File, accountId?: number) => {
+    const form = new FormData()
+    form.append('file', file)
+    if (accountId != null) form.append('accountId', String(accountId))
+    return http.post('/attachments', form) as Promise<AttachmentMeta>
+  },
+  downloadUrl: (id: number) => `/api/attachments/${id}/content`
+}
+
 export const syncApi = {
   trigger: (accountId: number) => http.post('/sync', null, { params: { accountId } }),
   all: () => http.post('/sync/all')

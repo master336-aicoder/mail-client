@@ -103,13 +103,19 @@ public class AccountSync {
     // 单条消息落库各自成事务即可。
     void doSync(MailAccount account) {
         MailClient client = protocolFactory.clientFor(account.getProtocol());
-        List<Message> fetched = client.fetchInbox(account);
         // 规则以账户为基准：仅应用属于该账户的启用规则
         List<Rule> rules = ruleRepository
                 .findByUserIdAndAccountIdAndEnabledTrueOrderByPriorityAsc(account.getUserId(), account.getId());
         // 确保当前账户的默认文件夹存在，并定位该账户的收件箱
         folderService.ensureAccountDefaults(account.getUserId(), account.getId());
         Long inboxFolderId = folderService.resolveAccountFolderId(account.getUserId(), account.getId(), "收件箱");
+        // IMAP 走序号增量：仅拉取本地高水位之后的新邮件，稳态下不再逐封拉正文。
+        // POP3 消息编号会因下载/删除重排，不适用，退回全量（sinceSeq=0）。
+        int sinceSeq = 0;
+        if ("imap".equalsIgnoreCase(account.getProtocol())) {
+            sinceSeq = (int) messageRepository.maxRemoteSeq(account.getId(), inboxFolderId);
+        }
+        List<Message> fetched = client.fetchInbox(account, sinceSeq);
         int inserted = 0;
         for (Message msg : fetched) {
             msg.setFolderId(inboxFolderId);
