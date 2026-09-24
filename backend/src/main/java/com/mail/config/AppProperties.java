@@ -17,6 +17,8 @@ public class AppProperties {
     private String masterKey;
     /** 允许使用仓库内置的开发默认密钥（仅限本地开发 profile，生产必须为 false 并通过环境变量注入真实密钥）。 */
     private boolean allowInsecureDefaults = false;
+    /** 允许绑定指向内网/回环的邮件服务器主机（SSRF 防护开关，仅限本地测试放行）。 */
+    private boolean allowPrivateHost = false;
     private String storageMode = "local";
     private String ostBaseDir = "./data/ost";
     private String attachDir = "./data/attachments";

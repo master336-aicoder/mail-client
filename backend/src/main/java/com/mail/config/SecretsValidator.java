@@ -38,7 +38,9 @@ public class SecretsValidator {
     void validate() {
         boolean jwtInsecure = isBlank(app.getJwtSecret()) || DEFAULT_JWT.equals(app.getJwtSecret());
         boolean masterInsecure = isBlank(app.getMasterKey()) || DEFAULT_MASTER.equals(app.getMasterKey());
-        boolean minioInsecure = DEFAULT_MINIO.get(0).equals(minio.getAccessKey())
+        // 仅在确实启用 MinIO 存储时才校验其凭据，避免 local 存储被无关默认值误拦
+        boolean minioInsecure = "minio".equalsIgnoreCase(app.getStorageMode())
+                && DEFAULT_MINIO.get(0).equals(minio.getAccessKey())
                 && DEFAULT_MINIO.get(1).equals(minio.getSecretKey());
 
         if (!jwtInsecure && !masterInsecure && !minioInsecure) {

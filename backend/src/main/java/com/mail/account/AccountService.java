@@ -25,6 +25,7 @@ public class AccountService {
     private final MailAccountRepository accountRepository;
     private final CryptoService cryptoService;
     private final FolderService folderService;
+    private final com.mail.common.HostGuard hostGuard;
 
     /**
      * 根据邮箱域名与已知规则探测 IMAP/POP3/SMTP 推荐配置。
@@ -53,6 +54,8 @@ public class AccountService {
     @Transactional
     public MailAccount create(AccountRequest req) {
         Long userId = CurrentUser.requireId();
+        hostGuard.check(req.getHost(), "收件服务器");
+        hostGuard.check(req.getSmtpHost(), "发件服务器");
         MailAccount a = new MailAccount();
         a.setUserId(userId);
         a.setEmail(req.getEmail());

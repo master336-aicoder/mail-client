@@ -1,7 +1,8 @@
-# 本地开发 profile：显式放行仓库内置默认密钥。
+# 本地开发 profile：显式放行仓库内置默认密钥，并允许绑定内网/回环邮件服务器便于本地联调。
 # 启动方式：mvn spring-boot:run -Dspring-boot.run.profiles=dev
 #          或 java -jar app.jar --spring.profiles.active=dev
-# 生产环境切勿使用本 profile：应通过环境变量注入真实 JWT_SECRET / MASTER_KEY。
+# 生产环境切勿使用本 profile：应通过环境变量注入真实 JWT_SECRET / MASTER_KEY，并保持 SSRF 防护开启。
 mail:
   app:
     allow-insecure-defaults: true
+    allow-private-host: true
