@@ -113,6 +113,9 @@ public class FolderService {
     @Transactional
     public Folder create(Folder folder) {
         Long userId = CurrentUser.requireId();
+        if (folder.getName() == null || folder.getName().isBlank()) {
+            throw new BizException("文件夹名称不能为空");
+        }
         folder.setId(null);
         folder.setUserId(userId);
         return folderRepository.save(folder);
@@ -124,7 +127,10 @@ public class FolderService {
         Folder f = folderRepository.findById(id)
                 .orElseThrow(() -> new BizException("文件夹不存在"));
         if (!f.getUserId().equals(userId)) throw new BizException(40300, "无权操作");
-        if (update.getName() != null) f.setName(update.getName());
+        if (update.getName() != null) {
+            if (update.getName().isBlank()) throw new BizException("文件夹名称不能为空");
+            f.setName(update.getName());
+        }
         if (update.getParentId() != null) f.setParentId(update.getParentId());
         if (update.getSeq() != null) f.setSeq(update.getSeq());
         return folderRepository.save(f);

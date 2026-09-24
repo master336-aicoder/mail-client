@@ -57,7 +57,7 @@
         </div>
       </el-scrollbar>
       <div class="list-pager">
-        <el-pagination small layout="prev, pager, next" :total="mail.total"
+        <el-pagination size="small" layout="prev, pager, next" :total="mail.total"
           :page-size="50" @current-change="load" />
       </div>
     </div>
@@ -165,21 +165,44 @@ const replyInit = ref<any>(null)
 const composeTitle = ref('回复邮件')
 const sendingDraft = ref(false)
 
-// 渲染用正文：为内嵌图片地址追加 access_token，使 <img> 可正常加载（无 Authorization 头）
+// 渲染用正文：把正文里的 cid: 引用解析为内嵌资源地址。
+// - 若同步阶段已捕获该内嵌图片（detail.attachments 中有对应 Content-ID），改写为 /api/inline/{id}；
+// - 若邮件未携带 / 未捕获到图片字节，则替换为透明占位图，避免浏览器尝试加载 cid: 触发失败与破图。
+const PLACEHOLDER_IMG = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 const displayBody = computed(() => {
   const html = detail.value?.bodyHtml
   const text = detail.value?.bodyText
   return renderBody(html ?? (text ? `<p>${text}</p>` : ''))
 })
+function normalizeCid(raw: string) {
+  return String(raw).trim().replace(/^[<]/, '').replace(/[>]$/, '')
+}
 function renderBody(html: string) {
   if (!html) return ''
   const token = localStorage.getItem('access_token')
-  if (!token) return html
-  // 给所有未带 token 的内嵌图片地址追加 access_token
-  return html.replace(/(src=["'])\.?(\/api\/inline\/[^"']*?)["']/g, (m, q, url) => {
-    const sep = url.includes('?') ? '&' : '?'
-    return `${q}${url}${sep}access_token=${encodeURIComponent(token)}${q}`
+  // 建立 Content-ID → 附件 id 映射（后端 AttachmentMeta.contentId 已随详情返回）
+  const byCid = new Map<string, number>()
+  for (const a of (detail.value?.attachments || [])) {
+    if (a && a.contentId) byCid.set(normalizeCid(a.contentId), a.id)
+  }
+  // 1) 改写正文中的 cid: 引用（src/href 属性，以及 CSS url(cid:...)）
+  let out = html.replace(/((?:src|href)\s*=\s*)(["'])cid:([^"']+)\2/gi, (_m, attr, q, cid) => {
+    const id = byCid.get(normalizeCid(cid))
+    return id != null ? `${attr}${q}/api/inline/${id}${q}` : `${attr}${q}${PLACEHOLDER_IMG}${q}`
   })
+  out = out.replace(/url\(\s*["']?cid:([^"')]+)["']?\s*\)/gi, (_m, cid) => {
+    const id = byCid.get(normalizeCid(cid))
+    return id != null ? `url("/api/inline/${id}")` : `url("${PLACEHOLDER_IMG}")`
+  })
+  // 2) 给已存在的 /api/inline 地址补 access_token（inline 端点虽免鉴权，补上更稳妥）
+  if (token) {
+    out = out.replace(/(src=["'])\.?(\/api\/inline\/[^"']*?)["']/gi, (m, q, url) => {
+      if (url.includes('access_token')) return m
+      const sep = url.includes('?') ? '&' : '?'
+      return `${q}${url}${sep}access_token=${encodeURIComponent(token)}${q}`
+    })
+  }
+  return out
 }
 const foldOpen = ref(false)
 const foldSaving = ref(false)
@@ -225,12 +248,29 @@ function fmtSize(s?: number) {
 }
 
 async function load(page = 1) {
+  // 无路由指定文件夹时，定位“当前用户自己的”默认收件箱并跳转，
+  // 不能写死文件夹 id（不同用户的收件箱 id 不同，写死会误访问他人文件夹）。
+  if (!route.params.id) {
+    if (!mail.folders || mail.folders.length === 0) {
+      try { await mail.loadFolders() } catch { /* 拦截器已提示 */ }
+    }
+    const folders = mail.folders || []
+    const inbox =
+      folders.find((f: any) => f.isMerged && f.name === '收件箱') ||
+      folders.find((f: any) => f.isMerged)
+    if (inbox) {
+      await router.replace(`/mail/folder/${inbox.id}`)
+      return
+    }
+  }
   const folderId = Number(activeFolder.value)
   const accountId = activeAccount.value || undefined
   const q = keyword.value.trim() || undefined
   selectedId.value = 0
   detail.value = null
-  await mail.loadMessages(folderId, page, 50, { accountId, q })
+  try {
+    await mail.loadMessages(folderId, page, 50, { accountId, q })
+  } catch { /* 请求失败已由 http 拦截器统一提示，避免 onMounted 未捕获异常 */ }
 }
 
 function onSearch() {

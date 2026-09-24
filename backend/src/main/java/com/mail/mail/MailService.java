@@ -47,6 +47,10 @@ public class MailService {
         Long userId = CurrentUser.requireId();
         PageRequest pr = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "date"));
         Folder folder = folderRepository.findById(folderId).orElse(null);
+        // 归属校验：拒绝访问不存在或属于他人账户的文件夹，避免越权读取他人邮件列表
+        if (folder == null || !userId.equals(folder.getUserId())) {
+            throw new BizException(40300, "无权访问");
+        }
         // 合并视图：账户级菜单（accountId 为 null）聚合所有账户同名文件夹
         boolean merged = folder != null && folder.getAccountId() == null;
         // 草稿文件夹按 is_draft=true 列表，其余文件夹仅列非草稿

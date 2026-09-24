@@ -52,6 +52,8 @@ async function load() {
   loading.value = true
   try {
     users.value = await (await import('@/api')).adminApi.list()
+  } catch {
+    /* 无权限或加载失败已由 http 拦截器统一提示，避免 mounted 未捕获异常 */
   } finally {
     loading.value = false
   }

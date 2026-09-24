@@ -26,8 +26,8 @@ http.interceptors.response.use(
   },
   (error) => {
     const status = error.response?.status
-    // 401 与 403 均视为会话失效（JWT 过期/无效在后端返回 403），清空并跳转登录页
-    if (status === 401 || status === 403) {
+    // 401：未认证/会话失效（token 缺失、过期、无效）→ 清空并跳转登录页
+    if (status === 401) {
       localStorage.removeItem('access_token')
       localStorage.removeItem('user')
       if (router.currentRoute.value.name !== 'login') {
@@ -36,7 +36,12 @@ http.interceptors.response.use(
       ElMessage.error('登录状态已失效，请重新登录')
       return Promise.reject(error)
     }
+    // 403：已登录但无权限（如普通用户访问管理员接口）→ 仅提示，不清除会话、不跳转登录
     const msg = error.response?.data?.message || error.message || '网络错误'
+    if (status === 403) {
+      ElMessage.error(msg || '没有权限访问')
+      return Promise.reject(error)
+    }
     ElMessage.error(msg)
     return Promise.reject(error)
   }

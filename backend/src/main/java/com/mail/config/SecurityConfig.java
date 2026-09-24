@@ -56,8 +56,23 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
+                // 未认证 -> 401（携带统一信封，便于前端识别会话失效）；已认证但无权 -> 403。
+                // 默认情况下 Spring 使用 Http403ForbiddenEntryPoint，会把"未登录"误报为 403。
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) ->
+                                writeJson(response, 401, 40100, "未认证或登录已失效"))
+                        .accessDeniedHandler((request, response, deniedException) ->
+                                writeJson(response, 403, 40300, "无权访问")))
                 .addFilterBefore(new JwtAuthFilter(jwtService), UsernamePasswordAuthenticationFilter.class);
         return http.build();
+    }
+
+    private static void writeJson(jakarta.servlet.http.HttpServletResponse response,
+                                  int status, int code, String message) throws java.io.IOException {
+        response.setStatus(status);
+        response.setContentType("application/json;charset=UTF-8");
+        response.setCharacterEncoding("UTF-8");
+        response.getWriter().write("{\"code\":" + code + ",\"message\":\"" + message + "\",\"data\":null}");
     }
 
     @Bean

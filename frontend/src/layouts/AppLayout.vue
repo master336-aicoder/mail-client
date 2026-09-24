@@ -71,7 +71,7 @@
                   :command="'switch:' + a.id" :divided="true">
                   <span class="acct-opt">
                     <span class="acct-opt-label">{{ a.email }}</span>
-                    <el-link type="danger" :underline="false" @click.stop="deleteAccount(a.id, a.email)">删除</el-link>
+                    <el-link type="danger" underline="never" @click.stop="deleteAccount(a.id, a.email)">删除</el-link>
                   </span>
                 </el-dropdown-item>
                 <el-dropdown-item divided command="manage">账户管理</el-dropdown-item>
