@@ -1,0 +1,7 @@
+# 本地开发 profile：显式放行仓库内置默认密钥。
+# 启动方式：mvn spring-boot:run -Dspring-boot.run.profiles=dev
+#          或 java -jar app.jar --spring.profiles.active=dev
+# 生产环境切勿使用本 profile：应通过环境变量注入真实 JWT_SECRET / MASTER_KEY。
+mail:
+  app:
+    allow-insecure-defaults: true

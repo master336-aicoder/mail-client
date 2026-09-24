@@ -153,6 +153,7 @@ import { mailApi, folderApi, syncApi } from '@/api'
 import ComposeDrawer from '@/components/ComposeDrawer.vue'
 import { Search, Plus, Refresh, Edit, Promotion } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
+import DOMPurify from 'dompurify'
 
 const mail = useMailStore()
 const route = useRoute()
@@ -202,7 +203,12 @@ function renderBody(html: string) {
       return `${q}${url}${sep}access_token=${encodeURIComponent(token)}${q}`
     })
   }
-  return out
+  // 3) 净化：邮件 HTML 来自不可信发件人，去除脚本/事件处理器等，防存储型 XSS
+  return DOMPurify.sanitize(out, {
+    USE_PROFILES: { html: true },
+    ADD_ATTR: ['target'],
+    ALLOW_DATA_ATTR: false
+  })
 }
 const foldOpen = ref(false)
 const foldSaving = ref(false)

@@ -33,12 +33,23 @@ public class LocalFileStorage implements AttachmentStorage {
         return "local";
     }
 
+    /** 归一化并校验 ref 落在 baseDir 之内，杜绝 ../ 路径穿越写到沙箱外。 */
+    private Path resolveSafe(String ref) {
+        Path root = baseDir.toAbsolutePath().normalize();
+        Path target = root.resolve(ref).normalize();
+        if (!target.startsWith(root)) {
+            throw new SecurityException("非法的存储路径");
+        }
+        return target;
+    }
+
     @Override
     public String save(String key, InputStream in, long size, String contentType) {
         String ref = key == null ? UUID.randomUUID().toString() : key;
-        Path target = baseDir.resolve(ref);
+        Path target = resolveSafe(ref);
         try {
-            Files.createDirectories(target.toAbsolutePath().getParent() == null ? baseDir : target.getParent());
+            Path parent = target.getParent();
+            if (parent != null) Files.createDirectories(parent);
             Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
             throw new RuntimeException("本地附件保存失败", e);
@@ -48,7 +59,7 @@ public class LocalFileStorage implements AttachmentStorage {
 
     @Override
     public InputStream open(String ref) {
-        Path p = baseDir.resolve(ref).normalize();
+        Path p = resolveSafe(ref);
         try {
             return Files.newInputStream(p);
         } catch (IOException e) {
@@ -59,8 +70,8 @@ public class LocalFileStorage implements AttachmentStorage {
     @Override
     public void delete(String ref) {
         try {
-            Files.deleteIfExists(baseDir.resolve(ref));
-        } catch (IOException ignored) {
+            Files.deleteIfExists(resolveSafe(ref));
+        } catch (Exception ignored) {
         }
     }
 }

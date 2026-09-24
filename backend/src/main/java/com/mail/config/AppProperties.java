@@ -15,6 +15,8 @@ public class AppProperties {
     private String jwtSecret;
     private long jwtExpireSeconds = 3600;
     private String masterKey;
+    /** 允许使用仓库内置的开发默认密钥（仅限本地开发 profile，生产必须为 false 并通过环境变量注入真实密钥）。 */
+    private boolean allowInsecureDefaults = false;
     private String storageMode = "local";
     private String ostBaseDir = "./data/ost";
     private String attachDir = "./data/attachments";

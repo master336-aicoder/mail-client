@@ -35,9 +35,10 @@ public class AttachmentService {
     public AttachmentMeta upload(MultipartFile file, Long accountId) {
         Long userId = CurrentUser.requireId();
         AttachmentStorage storage = storageRouter.defaultStorage();
+        String safeName = sanitizeFileName(file.getOriginalFilename());
         String ref;
         try (InputStream in = file.getInputStream()) {
-            String key = userId + "/" + System.currentTimeMillis() + "-" + file.getOriginalFilename();
+            String key = userId + "/" + System.currentTimeMillis() + "-" + safeName;
             ref = storage.save(key, in, file.getSize(), file.getContentType());
         } catch (IOException e) {
             throw new BizException("附件上传失败");
@@ -45,12 +46,22 @@ public class AttachmentService {
         AttachmentMeta meta = new AttachmentMeta();
         meta.setUserId(userId);
         meta.setAccountId(accountId);
-        meta.setName(file.getOriginalFilename());
+        meta.setName(safeName);
         meta.setMimeType(file.getContentType());
         meta.setSize(file.getSize());
         meta.setStorageRef(ref);
         meta.setStorageType(storage.type());
         return metaRepository.save(meta);
+    }
+
+    /** 只取文件名末段并剔除路径分隔符与上级目录片段，防止存储 key 被注入 ../ */
+    private static String sanitizeFileName(String name) {
+        if (name == null || name.isBlank()) return "file";
+        String n = name.replace('\\', '/');
+        int slash = n.lastIndexOf('/');
+        if (slash >= 0) n = n.substring(slash + 1);
+        n = n.replace("..", "").trim();
+        return n.isBlank() ? "file" : n;
     }
 
     @Transactional(readOnly = true)
