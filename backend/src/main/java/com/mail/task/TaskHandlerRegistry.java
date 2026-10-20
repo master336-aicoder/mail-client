@@ -26,4 +26,9 @@ public class TaskHandlerRegistry {
         if (h == null) throw new BizException("未知任务类型: " + type);
         return h;
     }
+
+    /** 批量操作时跳过已下线的任务类型，不抛异常。 */
+    public TaskHandler find(String type) {
+        return byType.get(type);
+    }
 }

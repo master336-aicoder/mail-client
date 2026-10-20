@@ -36,11 +36,8 @@ public class AccountSyncTaskHandler implements TaskHandler {
         if (accountId == null) throw new BizException("缺少账户信息，无法同步");
         MailAccount acc = accountRepository.findById(accountId)
                 .orElseThrow(() -> new BizException("账户不存在"));
-        progress.report(5, "开始连接 " + acc.getEmail());
-        // 拉取数据阶段（fetchInbox 内完成）
-        progress.report(30, "正在拉取收件箱邮件…");
-        accountSync.sync(acc);
-        progress.report(80, "同步完成，正在应用规则与推送…");
-        progress.report(100, "完成");
+        if (!acc.getUserId().equals(task.getUserId())) throw new BizException(40300, "无权操作");
+        // 进度与说明由 AccountSync 按真实阶段上报
+        accountSync.sync(acc, progress::report);
     }
 }

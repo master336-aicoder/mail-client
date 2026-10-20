@@ -75,8 +75,9 @@ public class AuthController {
     public ApiResponse<Void> changePassword(@RequestBody Map<String, String> body) {
         String oldPassword = body.getOrDefault("oldPassword", "");
         String newPassword = body.getOrDefault("newPassword", "");
-        if (newPassword == null || newPassword.length() < 6) {
-            throw new BizException("新密码长度至少 6 位");
+        // 与注册保持一致的强度门槛，避免「注册要 8 位、改密只要 6 位」的矛盾规则
+        if (newPassword == null || newPassword.length() < 8) {
+            throw new BizException("新密码长度至少 8 位");
         }
         authService.changePassword(oldPassword, newPassword);
         return ApiResponse.ok();

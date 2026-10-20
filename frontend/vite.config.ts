@@ -9,6 +9,11 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
+      workbox: {
+        // 后端接口/推送/监控是真实请求，不能被 SPA 的 index.html 兜底页拦截，
+        // 否则浏览器直接打开下载链接只会拿到前端壳子并跳回邮件页。
+        navigateFallbackDenylist: [/^\/api/, /^\/ws/, /^\/actuator/]
+      },
       manifest: {
         name: '云邮 Mail',
         short_name: '云邮',

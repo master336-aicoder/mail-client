@@ -32,4 +32,10 @@ public class AttachmentController {
     public ResponseEntity<Resource> download(@PathVariable Long id) {
         return attachmentService.download(id);
     }
+
+    /** 转发时把原邮件的附件带上新邮件：返回副本记录，原附件仍归属原邮件。 */
+    @PostMapping("/{id}/copy")
+    public ApiResponse<AttachmentMeta> copy(@PathVariable Long id) {
+        return ApiResponse.ok(attachmentService.copy(id));
+    }
 }

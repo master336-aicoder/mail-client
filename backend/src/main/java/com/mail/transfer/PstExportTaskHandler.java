@@ -7,6 +7,7 @@ import com.mail.mail.domain.Message;
 import com.mail.mail.domain.MessageRepository;
 import com.mail.storage.AttachmentStorage;
 import com.mail.storage.StorageRouter;
+import com.mail.task.AttachmentFiles;
 import com.mail.task.Progress;
 import com.mail.task.TaskHandler;
 import com.mail.task.domain.Task;
@@ -33,9 +34,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 /**
  * PST 导出后台任务。在独立线程池中异步执行，导出指定账户、指定文件夹下的邮件。
  *
- * <p>说明：所在环境仅引入 java-libpst（只读解析，无法生成二进制 PST）。
- * 因此导出采用 <b>EML 打包</b>（每封邮件一个 .eml，压缩为 .zip），
- * 该产物可被 Outlook / 主流邮件客户端导入，并满足“导出完成后提供下载地址”的要求。
+ * <p>说明：所在环境仅引入 java-libpst（只读解析，无法生成二进制 PST/OST）。
+ * 因此导出采用业界标准的邮件归档格式，均可被 Outlook / Thunderbird / 主流邮件客户端导入：
+ * <ul>
+ *   <li><b>zip</b>（默认）：每封邮件一个 .eml，压缩为 .zip；</li>
+ *   <li><b>mbox</b>：单个 .mbox 邮箱归档文件（RFC822 + "From " 分隔线）。</li>
+ * </ul>
+ * 产物可被邮件客户端导入，并满足“导出完成后提供下载地址”的要求。
  */
 @Slf4j
 @Component
@@ -48,9 +53,7 @@ public class PstExportTaskHandler implements TaskHandler {
     private final ObjectMapper objectMapper;
     private final AttachmentMetaRepository attachmentMetaRepository;
     private final StorageRouter storageRouter;
-
-    @Value("${mail.app.pst-export-dir:./data/exports}")
-    private String pstDir;
+    private final AttachmentFiles attachmentFiles;
 
     @Override
     public String type() {
@@ -76,6 +79,7 @@ public class PstExportTaskHandler implements TaskHandler {
         }
         List<Long> folderIds = folderIdsRaw.stream()
                 .map(o -> ((Number) o).longValue()).toList();
+        String format = normalizeFormat(params.get("format"));
 
         progress.report(10, "开始导出邮件…");
 
@@ -85,23 +89,48 @@ public class PstExportTaskHandler implements TaskHandler {
             total += messageRepository.countByFolderIdAndDeletedFalse(fid);
         }
         if (total == 0) {
+            progress.result("所选文件夹无邮件");
             progress.report(100, "所选文件夹无邮件，导出完成");
-            task.setResult(null);
             return;
         }
 
-        Path dir = Paths.get(pstDir, "user-" + userId);
-        Files.createDirectories(dir);
+        String relativeDir = "user-" + userId;
+        Path dir = attachmentFiles.ensureDir(relativeDir);
         String stamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
-        Path zip = dir.resolve("export-" + stamp + ".zip");
 
+        long done;
+        Path artifact;
+        if ("mbox".equals(format)) {
+            artifact = dir.resolve("export-" + stamp + ".mbox");
+            done = exportMbox(artifact, folderIds, total, progress);
+            String relative = relativeDir + "/" + artifact.getFileName().toString();
+            progress.attach(artifact.getFileName().toString(), relative, Files.size(artifact), "application/octet-stream");
+        } else {
+            artifact = dir.resolve("export-" + stamp + ".zip");
+            done = exportZip(artifact, folderIds, total, progress);
+            String relative = relativeDir + "/" + artifact.getFileName().toString();
+            progress.attach(artifact.getFileName().toString(), relative, Files.size(artifact), "application/zip");
+        }
+
+        String label = "mbox".equals(format) ? "MBOX" : "EML(ZIP)";
+        progress.result("导出 " + done + " 封邮件（" + label + "）");
+        progress.report(100, "导出完成，共 " + done + " 封邮件");
+    }
+
+    /** 只接受 zip / mbox，其它（含 null）回退默认 zip。 */
+    private String normalizeFormat(Object raw) {
+        String v = raw == null ? "" : String.valueOf(raw).trim().toLowerCase();
+        return "mbox".equals(v) ? "mbox" : "zip";
+    }
+
+    /** 导出为 .zip：每封邮件一个 .eml 条目。 */
+    private long exportZip(Path zip, List<Long> folderIds, long total, Progress progress) throws Exception {
         long done = 0;
         try (OutputStream fos = Files.newOutputStream(zip);
              ZipOutputStream zos = new ZipOutputStream(fos, StandardCharsets.UTF_8)) {
             int idx = 1;
             for (Long fid : folderIds) {
-                List<Message> messages = messageRepository.findByFolderIdAndDeletedFalse(fid);
-                for (Message m : messages) {
+                for (Message m : messageRepository.findByFolderIdAndDeletedFalse(fid)) {
                     zos.putNextEntry(new ZipEntry(safeName(idx++) + ".eml"));
                     zos.write(buildEml(m).getBytes(StandardCharsets.UTF_8));
                     zos.closeEntry();
@@ -112,10 +141,41 @@ public class PstExportTaskHandler implements TaskHandler {
                 }
             }
         }
+        return done;
+    }
 
-        // 记录相对下载路径，前端据此拼出下载地址
-        task.setResult("user-" + userId + "/" + zip.getFileName().toString());
-        progress.report(100, "导出完成，共 " + done + " 封邮件");
+    /**
+     * 导出为单个 .mbox 邮箱归档：每封邮件以 mbox 分隔线（"From " + 发件地址 + 时间）开头，
+     * 正文行首的 "From " 转义为 ">From "（mboxo 规则），避免解析歧义。
+     */
+    private long exportMbox(Path mbox, List<Long> folderIds, long total, Progress progress) throws Exception {
+        long done = 0;
+        SimpleDateFormat fromLine = new SimpleDateFormat("EEE MMM dd HH:mm:ss yyyy", java.util.Locale.US);
+        try (OutputStream fos = Files.newOutputStream(mbox);
+             java.io.BufferedWriter w = new java.io.BufferedWriter(
+                     new java.io.OutputStreamWriter(fos, StandardCharsets.UTF_8))) {
+            for (Long fid : folderIds) {
+                for (Message m : messageRepository.findByFolderIdAndDeletedFalse(fid)) {
+                    String addr = m.getSenderEmail() == null || m.getSenderEmail().isBlank()
+                            ? "unknown@example.com" : m.getSenderEmail().replaceAll("\\s", "");
+                    Date when = m.getDate() != null
+                            ? Date.from(m.getDate().atZone(java.time.ZoneId.systemDefault()).toInstant())
+                            : new Date();
+                    w.write("From " + addr + " " + fromLine.format(when) + "\n");
+                    for (String line : buildEml(m).split("\r?\n", -1)) {
+                        // 行首 "From " 转义为 ">From "（mboxo 规则），避免被误判为分隔线
+                        w.write(line.startsWith("From ") ? ">" + line : line);
+                        w.write("\n");
+                    }
+                    w.write("\n"); // 消息间空行分隔
+                    done++;
+                    if (done % 20 == 0 || done == total) {
+                        progress.report(10 + (int) (80.0 * done / total), "已导出 " + done + "/" + total);
+                    }
+                }
+            }
+        }
+        return done;
     }
 
     private String safeName(int i) {

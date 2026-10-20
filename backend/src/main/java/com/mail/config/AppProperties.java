@@ -25,6 +25,19 @@ public class AppProperties {
     private String ostBaseDir = "./data/ost";
     private String attachDir = "./data/attachments";
     private String pstExportDir = "./data/exports";
+    /** 收信时把每封邮件的原始 MIME 流转存到此目录，便于离线反复解析排查（仅调试用）。 */
+    private String rawDir = "./data/raw";
+    /** 是否转存原始 MIME 流。生产默认关闭；本地 dev 打开以便反复解析。 */
+    private boolean saveRawMime = false;
+    /** 是否开放 /api/dev/parse-eml 调试端点：上传/读取 .eml 反复解析，查看各要素兜底结果。 */
+    private boolean emlParseDebug = false;
+    /**
+     * 是否启用周期任务调度（{@code @EnableScheduling}），与启动类上的
+     * {@code @ConditionalOnProperty(name="mail.app.scheduling-enabled", matchIfMissing=true)} 对应。
+     * {@code --mail.app.scheduling-enabled=false} 时进程照常提供 HTTP 服务，但周期收信、
+     * 记录保存策略清理、系统资源预警等 @Scheduled 任务都不运行，只可手动触发。默认开启。
+     */
+    private boolean schedulingEnabled = true;
     private int pstMaxImportMb = 100;
     private String corsAllowedOrigins = "http://localhost:5173,http://127.0.0.1:5173";
 }

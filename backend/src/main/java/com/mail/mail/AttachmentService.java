@@ -1,5 +1,6 @@
 package com.mail.mail;
 
+import com.mail.account.domain.MailAccountRepository;
 import com.mail.auth.CurrentUser;
 import com.mail.common.BizException;
 import com.mail.mail.domain.AttachmentMeta;
@@ -30,10 +31,17 @@ public class AttachmentService {
 
     private final AttachmentMetaRepository metaRepository;
     private final StorageRouter storageRouter;
+    private final MailAccountRepository accountRepository;
 
     @Transactional
     public AttachmentMeta upload(MultipartFile file, Long accountId) {
         Long userId = CurrentUser.requireId();
+        if (accountId != null) {
+            var a = accountRepository.findById(accountId).orElse(null);
+            if (a == null || !userId.equals(a.getUserId())) {
+                throw new BizException(40300, "无权操作该账户");
+            }
+        }
         AttachmentStorage storage = storageRouter.defaultStorage();
         String safeName = sanitizeFileName(file.getOriginalFilename());
         String ref;
@@ -62,6 +70,26 @@ public class AttachmentService {
         if (slash >= 0) n = n.substring(slash + 1);
         n = n.replace("..", "").trim();
         return n.isBlank() ? "file" : n;
+    }
+
+    /**
+     * 转发用：给同一份内容新建一条附件记录（文件本体不复制，存储里从不物理删除）。
+     * 不能直接把原 id 交给发送请求——发送会把引用的附件改挂到新邮件下，原邮件的附件列表就空了。
+     */
+    @Transactional
+    public AttachmentMeta copy(Long id) {
+        Long userId = CurrentUser.requireId();
+        AttachmentMeta src = metaRepository.findById(id).orElseThrow(() -> new BizException("附件不存在"));
+        if (!src.getUserId().equals(userId)) throw new BizException(40300, "无权访问");
+        AttachmentMeta copy = new AttachmentMeta();
+        copy.setUserId(userId);
+        copy.setAccountId(src.getAccountId());
+        copy.setName(src.getName());
+        copy.setMimeType(src.getMimeType());
+        copy.setSize(src.getSize());
+        copy.setStorageRef(src.getStorageRef());
+        copy.setStorageType(src.getStorageType());
+        return metaRepository.save(copy);
     }
 
     @Transactional(readOnly = true)

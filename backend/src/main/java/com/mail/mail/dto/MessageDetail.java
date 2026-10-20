@@ -19,6 +19,9 @@ public class MessageDetail {
     private String cc;
     private LocalDateTime date;
     private Integer flags;
+    private Boolean read;
+    private Boolean starred;
+    private Boolean important;
     private String bodyHtml;
     private String bodyText;
     private List<AttachmentMeta> attachments;

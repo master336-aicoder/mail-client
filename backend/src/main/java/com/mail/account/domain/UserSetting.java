@@ -29,6 +29,18 @@ public class UserSetting {
     @Column(name = "default_sync_interval_sec", nullable = false)
     private Integer defaultSyncIntervalSec = 60;
 
+    /** 执行记录保存范围：ALL 全部 / SUCCESS 只留成功 / FAILED 只留失败 / NONE 不保留 */
+    @Column(name = "run_retention_scope", nullable = false, length = 16)
+    private String runRetentionScope = "ALL";
+
+    /** 执行记录保存天数，超期清理 */
+    @Column(name = "run_retention_days", nullable = false)
+    private Integer runRetentionDays = 7;
+
+    /** 外观主题模式：auto 跟随系统 / light 浅色 / dark 深色 */
+    @Column(name = "theme", nullable = false, length = 16)
+    private String theme = "auto";
+
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

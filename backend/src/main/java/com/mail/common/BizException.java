@@ -16,6 +16,15 @@ public class BizException extends RuntimeException {
         this.code = code;
     }
 
+    /**
+     * 带上原始协议异常：中文提示给用户看，原始异常留给上层判定失败类型
+     * （如 {@link MailErrors#isAuthRejected} 据此决定收信任务是否退避）。
+     */
+    public BizException(int code, String message, Throwable cause) {
+        super(message, cause);
+        this.code = code;
+    }
+
     public int getCode() {
         return code;
     }

@@ -32,7 +32,7 @@
               <el-input v-model="regForm.email" placeholder="邮箱（可选）" size="large" :prefix-icon="Message" />
             </el-form-item>
             <el-form-item prop="password">
-              <el-input v-model="regForm.password" type="password" placeholder="密码" size="large"
+              <el-input v-model="regForm.password" type="password" placeholder="密码（至少 8 位）" size="large"
                 show-password :prefix-icon="Lock" />
             </el-form-item>
             <el-form-item prop="confirmPassword">
@@ -72,13 +72,24 @@ const rules: FormRules = {
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
 }
 const regRules: FormRules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, min: 6, message: '密码至少 6 位', trigger: 'blur' }],
-  confirmPassword: [{
-    validator: (_r, v, cb) =>
-      v === regForm.password ? cb() : cb(new Error('两次密码不一致')),
-    trigger: 'blur'
-  }]
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' },
+    { min: 3, max: 64, message: '用户名长度 3-64 个字符', trigger: 'blur' }
+  ],
+  // 与后端注册接口一致（8 位起），避免填完提交才被打回
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { min: 8, message: '密码至少 8 位，建议包含字母与数字', trigger: 'blur' }
+  ],
+  confirmPassword: [
+    { required: true, message: '请再次输入密码', trigger: 'blur' },
+    {
+      validator: (_r, v, cb) =>
+        v === regForm.password ? cb() : cb(new Error('两次密码不一致')),
+      trigger: 'blur'
+    }
+  ],
+  email: [{ type: 'email', message: '邮箱格式不正确，应为 name@example.com', trigger: 'blur' }]
 }
 
 async function doLogin() {

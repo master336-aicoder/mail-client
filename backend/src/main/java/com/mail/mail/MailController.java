@@ -1,6 +1,10 @@
 package com.mail.mail;
 
+import com.mail.auth.CurrentUser;
 import com.mail.common.ApiResponse;
+import com.mail.mail.dto.BatchFlagsRequest;
+import com.mail.mail.dto.BatchIdsRequest;
+import com.mail.mail.dto.BatchMoveRequest;
 import com.mail.mail.dto.ComposeRequest;
 import com.mail.mail.dto.MessageDetail;
 import com.mail.mail.dto.MessageListItem;
@@ -53,6 +57,12 @@ public class MailController {
         return ApiResponse.ok(Map.of("messageId", id));
     }
 
+    @PutMapping("/messages/draft/{id}")
+    public ApiResponse<Map<String, Object>> updateDraft(@PathVariable Long id, @RequestBody ComposeRequest req) {
+        mailService.updateDraft(id, req);
+        return ApiResponse.ok(Map.of("messageId", id));
+    }
+
     @PutMapping("/messages/{id}/flags")
     public ApiResponse<Void> updateFlags(@PathVariable Long id, @RequestBody UpdateFlagsRequest req) {
         mailService.updateFlags(id, req);
@@ -63,5 +73,35 @@ public class MailController {
     public ApiResponse<Void> markDeleted(@PathVariable Long id) {
         mailService.markDeleted(id);
         return ApiResponse.ok();
+    }
+
+    /** 批量标记：已读 / 星标 / 重要，未传的项保持不变。 */
+    @PostMapping("/messages/batch-flags")
+    public ApiResponse<Map<String, Object>> batchFlags(@Valid @RequestBody BatchFlagsRequest req) {
+        int updated = mailService.batchUpdateFlags(CurrentUser.requireId(), req.getIds(), req);
+        return ApiResponse.ok(Map.of("updated", updated));
+    }
+
+    @PostMapping("/messages/batch-delete")
+    public ApiResponse<Map<String, Object>> batchDelete(@Valid @RequestBody BatchIdsRequest req) {
+        int deleted = mailService.batchDelete(CurrentUser.requireId(), req.getIds());
+        return ApiResponse.ok(Map.of("deleted", deleted));
+    }
+
+    /** 批量移动到指定文件夹（目标须为账户级文件夹）。 */
+    @PostMapping("/messages/batch-move")
+    public ApiResponse<Map<String, Object>> batchMove(@Valid @RequestBody BatchMoveRequest req) {
+        return ApiResponse.ok(Map.of("moved", mailService.batchMove(CurrentUser.requireId(), req)));
+    }
+
+    @PostMapping("/folders/{folderId}/mark-read")
+    public ApiResponse<Map<String, Object>> markFolderRead(@PathVariable Long folderId) {
+        return ApiResponse.ok(Map.of("updated", mailService.markFolderRead(folderId)));
+    }
+
+    /** 清空文件夹：合并视图会连带各账户同名文件夹，属高影响操作，前端需二次确认。 */
+    @PostMapping("/folders/{folderId}/clear")
+    public ApiResponse<Map<String, Object>> clearFolder(@PathVariable Long folderId) {
+        return ApiResponse.ok(Map.of("deleted", mailService.clearFolder(folderId)));
     }
 }

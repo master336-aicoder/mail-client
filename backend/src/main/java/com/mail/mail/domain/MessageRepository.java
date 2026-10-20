@@ -4,8 +4,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -51,4 +53,40 @@ public interface MessageRepository extends JpaRepository<Message, Long>, JpaSpec
             + "or lower(m.sender) like lower(concat('%', :kw, '%')) "
             + "or lower(m.senderEmail) like lower(concat('%', :kw, '%')))")
     Page<Message> searchByFolders(@Param("folderIds") List<Long> folderIds, @Param("kw") String kw, Pageable pageable);
+
+    @Query("select m from Message m where m.deleted = false and m.folderId = :folderId "
+            + "and (lower(m.subject) like lower(concat('%', :kw, '%')) "
+            + "or lower(m.sender) like lower(concat('%', :kw, '%')) "
+            + "or lower(m.senderEmail) like lower(concat('%', :kw, '%')))")
+    Page<Message> searchByFolderAnyDraft(@Param("folderId") Long folderId, @Param("kw") String kw, Pageable pageable);
+
+    @Query("select m from Message m where m.deleted = false and m.folderId in :folderIds "
+            + "and (lower(m.subject) like lower(concat('%', :kw, '%')) "
+            + "or lower(m.sender) like lower(concat('%', :kw, '%')) "
+            + "or lower(m.senderEmail) like lower(concat('%', :kw, '%')))")
+    Page<Message> searchByFoldersAnyDraft(@Param("folderIds") List<Long> folderIds, @Param("kw") String kw, Pageable pageable);
+
+    /** 清空文件夹：整批软删除，避免逐封加载正文实体。 */
+    @Transactional
+    @Modifying
+    @Query("update Message m set m.deleted = true where m.userId = :userId and m.deleted = false "
+            + "and m.folderId in :folderIds")
+    int softDeleteByFolders(@Param("userId") Long userId, @Param("folderIds") List<Long> folderIds);
+
+    /** 重置账户：硬删除该账户全部本地邮件（收件箱/已发送/草稿等），随后由同步重新拉取。 */
+    @Transactional
+    @Modifying
+    @Query("delete from Message m where m.accountId = :accountId")
+    int deleteAllByAccountId(@Param("accountId") Long accountId);
+
+    /**
+     * 整个文件夹标记已读。flags 是位图，JPQL 没有按位或，只能用原生 SQL；
+     * 已读位（1）已置位的行不更新，返回的是本次真正改动数。
+     */
+    @Transactional
+    @Modifying
+    @Query(value = "update messages set flags = flags | 1, updated_at = now() "
+            + "where user_id = :userId and deleted = 0 and folder_id in :folderIds and (flags & 1) = 0",
+            nativeQuery = true)
+    int markFoldersRead(@Param("userId") Long userId, @Param("folderIds") List<Long> folderIds);
 }

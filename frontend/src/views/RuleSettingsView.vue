@@ -18,6 +18,14 @@
           <div class="rule-name">{{ r.name }}</div>
           <div class="rule-brief">{{ summarize(r) }}</div>
         </div>
+        <div class="rule-actions">
+          <el-button size="small" text :disabled="i === 0" @click="moveUp(r, i)">
+            <el-icon><ArrowUp /></el-icon>
+          </el-button>
+          <el-button size="small" text :disabled="i === rules.length - 1" @click="moveDown(r, i)">
+            <el-icon><ArrowDown /></el-icon>
+          </el-button>
+        </div>
         <el-switch :model-value="r.enabled" @change="(v: any) => toggle(r, v)" />
         <el-button size="small" text @click="openEditor(r)">编辑</el-button>
         <el-button size="small" text type="danger" @click="remove(r)">删除</el-button>
@@ -79,6 +87,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { ruleApi, type Rule } from '@/api'
 import { useMailStore } from '@/stores/mail'
 
@@ -200,6 +209,26 @@ async function toggle(r: Rule, v: boolean) {
   r.enabled = v
 }
 
+async function moveUp(r: Rule, idx: number) {
+  if (idx === 0) return
+  const newRules = [...rules.value]
+  const temp = newRules[idx]
+  newRules[idx] = newRules[idx - 1]
+  newRules[idx - 1] = temp
+  rules.value = newRules
+  await ruleApi.reorder(newRules.map(r => r.id))
+}
+
+async function moveDown(r: Rule, idx: number) {
+  if (idx === rules.value.length - 1) return
+  const newRules = [...rules.value]
+  const temp = newRules[idx]
+  newRules[idx] = newRules[idx + 1]
+  newRules[idx + 1] = temp
+  rules.value = newRules
+  await ruleApi.reorder(newRules.map(r => r.id))
+}
+
 async function remove(r: Rule) {
   await ElMessageBox.confirm(`删除规则「${r.name}」？`, '提示', { type: 'warning' })
   await ruleApi.remove(r.id)
@@ -224,5 +253,6 @@ async function remove(r: Rule) {
 .rule-main { flex: 1; min-width: 0; }
 .rule-name { font-weight: 500; }
 .rule-brief { color: var(--color-text-3); font-size: 12px; margin-top: 2px; }
+.rule-actions { display: flex; gap: 2px; }
 .cond-row { display: flex; gap: 8px; width: 100%; }
 </style>

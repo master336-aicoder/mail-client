@@ -9,6 +9,12 @@ frontend/node_modules/
 frontend/dist/
 frontend/dev-dist/
 
+# 打包时由 deploy/package.ps1 拷入的前端构建产物（同进程托管），不入库
+backend/src/main/resources/static/
+
+# 打包发布产物目录
+dist-release/
+
 # Data / runtime
 data/
 backend/data/
@@ -21,3 +27,12 @@ backend/data/
 
 # Logs
 *.log
+backend/logs/
+
+# 测试期临时产物：curl cookie jar（含实时 access_token / csrf_token，禁止入库）
+cj.txt
+ck.txt
+cookies.txt
+
+# 真实邮箱样本（.pst 含个人邮件内容，禁止入库；由本地手工放入）
+samples/

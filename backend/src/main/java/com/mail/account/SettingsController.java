@@ -26,7 +26,15 @@ public class SettingsController {
     @PutMapping
     public ApiResponse<UserSetting> update(@RequestBody Map<String, Object> body) {
         Object v = body.get("defaultSyncIntervalSec");
-        int interval = v == null ? SettingsService.DEFAULT_INTERVAL_SEC : ((Number) v).intValue();
-        return ApiResponse.ok(settingsService.update(interval));
+        int interval = v == null ? SettingsService.DEFAULT_INTERVAL_SEC
+                : (v instanceof Number n ? n.intValue() : SettingsService.DEFAULT_INTERVAL_SEC);
+        Object scope = body.get("runRetentionScope");
+        Object days = body.get("runRetentionDays");
+        Object theme = body.get("theme");
+        return ApiResponse.ok(settingsService.update(
+                interval,
+                scope == null ? null : String.valueOf(scope),
+                days == null ? null : (days instanceof Number n ? n.intValue() : null),
+                theme == null ? null : String.valueOf(theme)));
     }
 }

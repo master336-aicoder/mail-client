@@ -24,7 +24,6 @@ public class HostGuard {
     /** 校验单个主机；blank 直接返回。非法/被禁地址抛 BizException(40030)。 */
     public void check(String host, String label) {
         if (host == null || host.isBlank()) return;
-        if (allowPrivate) return;
         String h = host.trim();
         // 去掉可能的协议/端口片段（防御式解析）
         int scheme = h.indexOf("://");
@@ -34,13 +33,29 @@ public class HostGuard {
         if (colon > 0 && (slash < 0 || colon < slash)) h = h.substring(0, colon);
         try {
             for (InetAddress addr : InetAddress.getAllByName(h)) {
-                if (isBlocked(addr)) {
+                if (isCloudMetadata(addr)) {
+                    throw new BizException(40030, label + "地址不合法：不允许指向云元数据地址");
+                }
+                if (!allowPrivate && isBlocked(addr)) {
                     throw new BizException(40030, label + "地址不合法：不允许指向内网/回环/元数据地址");
                 }
             }
         } catch (UnknownHostException e) {
             throw new BizException(40031, label + "域名无法解析");
         }
+    }
+
+    /** 云元数据地址无论是否放行内网都必须拦截（169.254.169.254 等）。 */
+    private static boolean isCloudMetadata(InetAddress a) {
+        byte[] b = a.getAddress();
+        if (b.length == 4) {
+            int o0 = b[0] & 0xFF, o1 = b[1] & 0xFF, o2 = b[2] & 0xFF, o3 = b[3] & 0xFF;
+            // 169.254.169.253 (IMDSv2), 169.254.169.254 (AWS/GCP/Alibaba metadata)
+            if (o0 == 169 && o1 == 254 && o2 == 169 && (o3 == 253 || o3 == 254)) return true;
+            // 100.100.100.200 (阿里云 DNS metadata)
+            if (o0 == 100 && o1 == 100 && o2 == 100 && o3 == 200) return true;
+        }
+        return false;
     }
 
     private static boolean isBlocked(InetAddress a) {

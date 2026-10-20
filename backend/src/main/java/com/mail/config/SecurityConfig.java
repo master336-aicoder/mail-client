@@ -56,7 +56,18 @@ public class SecurityConfig {
                                 "/api/inline/**"
                         ).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .anyRequest().authenticated())
+                        // 角色门禁：普通用户仅可用邮件管理/消息中心/通用设置。
+                        // 筛选规则、后台任务、任务产物、PST 导入导出归管理员。
+                        .requestMatchers(
+                                "/api/rules/**",
+                                "/api/tasks/**",
+                                "/api/task-attachments/**",
+                                "/api/transfer/**"
+                        ).hasRole("ADMIN")
+                        // 业务 API 与 WebSocket 需登录；其余（/ 、/index.html、/assets/**、
+                        // SPA history 深链等静态资源）放行，由前端路由与鉴权守卫处理。
+                        .requestMatchers("/api/**", "/ws/**").authenticated()
+                        .anyRequest().permitAll())
                 // 未认证 -> 401（携带统一信封，便于前端识别会话失效）；已认证但无权 -> 403。
                 // 默认情况下 Spring 使用 Http403ForbiddenEntryPoint，会把"未登录"误报为 403。
                 .exceptionHandling(ex -> ex

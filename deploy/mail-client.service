@@ -1,0 +1,56 @@
+# mail-client systemd 服务单元（Kylin V10 SP3 / RHEL 8 系）
+#
+# 由 install.sh / upgrade.sh 通过 sed 替换 @PLACEHOLDER@ 后
+# 写入 /etc/systemd/system/@SERVICE_NAME@.service，请勿直接手工部署。
+#
+# 占位符：
+#   @SERVICE_NAME@  服务名，默认 mail-client
+#   @RUN_USER@ / @RUN_GROUP@   运行用户组，默认 mail:mail
+#   @INSTALL_DIR@              安装目录，默认 /opt/mail-client
+#   @JAR_NAME@                 jar 文件名（含版本），由安装时锁定
+#   @JAVA_BIN@                 JDK 21 java 可执行绝对路径
+#   @SERVER_PORT@              对外端口，用于健康检查提示
+#
+# 密钥通过 EnvironmentFile=@INSTALL_DIR@/config/env 注入，
+# 该文件由 install.sh 生成，权限 0600，不进入版本库。
+
+[Unit]
+Description=Mail Client Web (Spring Boot SPA-in-jar)
+Documentation=file://@INSTALL_DIR@/docs
+After=network-online.target mysqld.service redis.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@RUN_USER@
+Group=@RUN_GROUP@
+WorkingDirectory=@INSTALL_DIR@
+
+EnvironmentFile=@INSTALL_DIR@/config/env
+ExecStart=@JAVA_BIN@ \
+    $JAVA_OPTS \
+    -Dfile.encoding=UTF-8 \
+    -Djava.security.egd=file:/dev/./urandom \
+    -jar @INSTALL_DIR@/app/@JAR_NAME@ \
+    --spring.profiles.active=prod \
+    --spring.config.additional-location=file:@INSTALL_DIR@/config/
+
+SuccessExitStatus=0 143
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=120
+TimeoutStopSec=30
+
+StandardOutput=append:/var/log/mail-client/stdout.log
+StandardError=append:/var/log/mail-client/stderr.log
+
+# ---- 安全加固 ----
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=@INSTALL_DIR@/data @INSTALL_DIR@/logs @INSTALL_DIR@/backups @INSTALL_DIR@/config /var/log/mail-client
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

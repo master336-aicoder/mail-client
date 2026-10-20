@@ -20,7 +20,7 @@ public class HealthController {
     private final JdbcTemplate jdbcTemplate;
 
     @GetMapping("/health")
-    public Map<String, Object> health() {
+    public ApiResponse<Map<String, Object>> health() {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("status", "UP");
         try {
@@ -29,6 +29,7 @@ public class HealthController {
         } catch (Exception e) {
             m.put("db", "DOWN: " + e.getMessage());
         }
-        return m;
+        m.put("storage", "local");
+        return ApiResponse.ok(m);
     }
 }

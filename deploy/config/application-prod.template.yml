@@ -1,0 +1,33 @@
+# mail-client 生产配置模板（Spring profile: prod）
+# 由 install.ps1 / upgrade.ps1 用 settings.json 中的值渲染 __PLACEHOLDER__ 后，
+# 生成到 <安装目录>\config\application-prod.yml（不入库、不提交）。
+#
+# 密钥（JWT_SECRET / MASTER_KEY）不写在本文件，改由 Windows 服务环境变量注入，
+# 见 install.ps1 生成的 nssm AppEnvironmentExtra。本文件只保留 ${JWT_SECRET} 引用由基础
+# application.yml 的占位符完成解析。
+server:
+  port: __SERVER_PORT__
+
+spring:
+  datasource:
+    url: jdbc:mysql://__DB_HOST__:__DB_PORT__/__DB_NAME__?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: __DB_USER__
+    password: __DB_PASSWORD__
+  data:
+    redis:
+      host: __REDIS_HOST__
+      port: __REDIS_PORT__
+      password: __REDIS_PASSWORD__
+
+mail:
+  app:
+    # 生产禁止使用内置默认密钥（由服务环境变量提供真实密钥）
+    allow-insecure-defaults: false
+    # SSRF 防护：仅当邮箱服务器为内网/回环主机时才置 true
+    allow-private-host: __ALLOW_PRIVATE_HOST__
+    # HTTPS 部署置 true（Cookie 加 Secure）；纯 http 内网置 false
+    auth-cookie-secure: __AUTH_COOKIE_SECURE__
+    # 单进程同源部署：填写本系统对外访问根地址（WS 握手来源校验依赖它）
+    cors-allowed-origins: "__PUBLIC_ORIGIN__"
+    # local | minio
+    storage-mode: __STORAGE_MODE__

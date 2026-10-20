@@ -102,4 +102,8 @@ public class Message {
 
     @jakarta.persistence.Transient
     private java.util.List<PendingInlinePart> pendingInline = new java.util.ArrayList<>();
+
+    /** 同步阶段解析到的普通附件（含 .eml 邮件副本），落库后由 AccountSync 持久化。 */
+    @jakarta.persistence.Transient
+    private java.util.List<PendingInlinePart> pendingAttachments = new java.util.ArrayList<>();
 }

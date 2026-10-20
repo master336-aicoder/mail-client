@@ -1,0 +1,35 @@
+{
+  "_comment": "mail-client Windows 安装设置示例。复制为 settings.json 后按需修改；install.ps1 首次运行会自动生成 settings.json 并写入随机密钥。settings.json 含密钥，请勿提交版本库。",
+
+  "serviceName": "mail-client",
+  "installDir": "C:\\mail-client",
+  "javaHome": "D:\\Java\\jdk-21",
+  "nssmPath": "C:\\mail-client\\tools\\nssm.exe",
+
+  "serverPort": 8080,
+
+  "publicOrigin": "http://mail.example.internal:8080",
+  "authCookieSecure": false,
+  "allowPrivateHost": false,
+  "storageMode": "local",
+
+  "db": {
+    "host": "localhost",
+    "port": 3306,
+    "name": "mail_client",
+    "user": "root",
+    "password": "root",
+    "mysqlBin": "C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysql.exe"
+  },
+
+  "redis": {
+    "host": "localhost",
+    "port": 6379,
+    "password": "redis"
+  },
+
+  "jwtSecret": "",
+  "masterKey": "",
+
+  "serviceUser": "LocalSystem"
+}

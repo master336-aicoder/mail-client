@@ -6,3 +6,6 @@ mail:
   app:
     allow-insecure-defaults: true
     allow-private-host: true
+    # 本地调试：收信时转存原始 MIME 到 ./data/raw，并开放 /api/dev/parse-eml 反复解析
+    save-raw-mime: true
+    eml-parse-debug: true

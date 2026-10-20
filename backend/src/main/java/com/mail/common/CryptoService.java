@@ -31,6 +31,7 @@ public class CryptoService {
     }
 
     public String encrypt(String plaintext) {
+        if (plaintext == null || plaintext.isEmpty()) return "";
         try {
             byte[] iv = new byte[IV_LEN];
             random.nextBytes(iv);
@@ -47,6 +48,9 @@ public class CryptoService {
     }
 
     public String decrypt(String ciphertext) {
+        // 账户未保存凭据（新建、只改了服务器配置、或历史脏数据）时密文为空，
+        // 直接解密会在 Base64 内部抛 NPE 并盖掉真正的连接错误，这里按「无密码」处理。
+        if (ciphertext == null || ciphertext.isBlank()) return "";
         try {
             byte[] in = Base64.getDecoder().decode(ciphertext);
             byte[] iv = new byte[IV_LEN];
@@ -57,7 +61,7 @@ public class CryptoService {
             cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_LEN, iv));
             return new String(cipher.doFinal(ct), StandardCharsets.UTF_8);
         } catch (Exception e) {
-            throw new IllegalStateException("解密失败", e);
+            throw new IllegalStateException("账号凭据无法解密：服务端主密钥可能已变更，请在账户设置中重新填写密码并保存", e);
         }
     }
 }

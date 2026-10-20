@@ -53,18 +53,10 @@ public class FolderService {
      *   <li>{@code total}/{@code unread}：邮件数（合并视图聚合所有同名账户文件夹）。</li>
      * </ul>
      */
-    @Transactional
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> tree() {
         Long userId = CurrentUser.requireId();
-        // 为所有已绑定账户补齐各自独立的默认文件夹
-        for (MailAccount a : accountRepository.findByUserId(userId)) {
-            ensureAccountDefaults(userId, a.getId());
-        }
         List<Folder> folders = folderRepository.findByUserIdOrderBySeqAsc(userId);
-        if (folders.isEmpty()) {
-            ensureDefaults(userId);
-            folders = folderRepository.findByUserIdOrderBySeqAsc(userId);
-        }
 
         List<Folder> accountFolders = new ArrayList<>();
         for (Folder f : folders) {
@@ -110,11 +102,21 @@ public class FolderService {
         return map;
     }
 
+    private static final java.util.Set<String> SYSTEM_NAMES = java.util.Set.of("收件箱", "草稿", "已发送", "已删除");
+
     @Transactional
     public Folder create(Folder folder) {
         Long userId = CurrentUser.requireId();
         if (folder.getName() == null || folder.getName().isBlank()) {
             throw new BizException("文件夹名称不能为空");
+        }
+        if (folder.getName().length() > 128) {
+            throw new BizException("文件夹名称不能超过超过 128 个字符");
+        }
+        if (folder.getAccountId() != null) {
+            MailAccount a = accountRepository.findById(folder.getAccountId())
+                    .orElseThrow(() -> new BizException("账户不存在"));
+            if (!a.getUserId().equals(userId)) throw new BizException(40300, "无权操作");
         }
         folder.setId(null);
         folder.setUserId(userId);
@@ -129,6 +131,7 @@ public class FolderService {
         if (!f.getUserId().equals(userId)) throw new BizException(40300, "无权操作");
         if (update.getName() != null) {
             if (update.getName().isBlank()) throw new BizException("文件夹名称不能为空");
+            if (update.getName().length() > 128) throw new BizException("文件夹名称不能超过超过 128 个字符");
             f.setName(update.getName());
         }
         if (update.getParentId() != null) f.setParentId(update.getParentId());
@@ -142,6 +145,12 @@ public class FolderService {
         Folder f = folderRepository.findById(id)
                 .orElseThrow(() -> new BizException("文件夹不存在"));
         if (!f.getUserId().equals(userId)) throw new BizException(40300, "无权操作");
+        if (f.getAccountId() == null) {
+            throw new BizException("「全部账户」为系统合并视图，不可删除");
+        }
+        if (SYSTEM_NAMES.contains(f.getName())) {
+            throw new BizException("系统文件夹「" + f.getName() + "」不可删除");
+        }
         folderRepository.delete(f);
     }
 
@@ -192,6 +201,17 @@ public class FolderService {
             f.setName(DEFAULT_NAMES[i]);
             f.setSeq(DEFAULT_SEQS[i]);
             folderRepository.save(f);
+        }
+    }
+
+    /**
+     * 删除账户时级联清理该账户的全部文件夹。
+     */
+    @Transactional
+    public void deleteByAccountId(Long userId, Long accountId) {
+        List<Folder> folders = folderRepository.findByUserIdAndAccountIdOrderBySeqAsc(userId, accountId);
+        if (!folders.isEmpty()) {
+            folderRepository.deleteAll(folders);
         }
     }
 
